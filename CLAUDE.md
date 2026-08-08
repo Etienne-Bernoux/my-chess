@@ -26,6 +26,8 @@ Non négociables. Chacune vient d'un incident vécu ou d'une vérification adver
 - **Cascade CSS** — media queries en fin de feuille, sinon elles perdent à spécificité égale.
 - **Nettoyage des timers** — tous les identifiants de `setInterval` / `setTimeout` libérés au démontage du composant, sinon accumulation en HMR.
 
+**Les pièges déjà payés sur ce projet sont dans [`docs/solutions/`](./docs/solutions/)** : un fichier par bug qui a réellement coûté une investigation, avec ce qu'il fallait comprendre pour s'en sortir. À lire avant de toucher au fold, au journal ou à l'undo — deux des défauts qui y sont décrits avaient survécu à des tests écrits avant le code. À alimenter dès qu'un nouveau bug coûte plus qu'un coup d'œil.
+
 ## Vérifier
 
 Pas de suite de tests généralisée. Le partage est délibéré :
