@@ -146,17 +146,32 @@ D4. **Le répertoire est une donnée source versionnée dans le repo**, éditée
 
   Le prix assumé : on ne peut pas ajouter une ligne depuis le téléphone, en club, juste après avoir vu une position intéressante. Cette limite est acceptée.
 
-D5. Deux directions d'entraînement valent mieux que la répétition espacée classique, et sont ce qui distingue cet outil d'un Chessable : **exiger une raison écrite** pour tout coup du répertoire (cf. D4 — portée par le typage), et **entraîner la détection de la sortie de livre** plutôt que la récitation — l'application joue une partie et dévie à un moment imprévisible, c'est au joueur de remarquer qu'il n'est plus en terrain connu. Ces deux directions ne sont possibles que parce qu'il n'y a qu'un utilisateur : un champ obligatoire rédigé à la main détruirait la conversion d'un produit de masse.
+D5. **Le format source est du TypeScript dont le contenu échiquéen reste de la notation algébrique.** Chaque entrée porte la ligne d'accès en SAN sous forme de chaîne, le coup prescrit, et une justification — champ requis par le type.
+
+```ts
+type RepertoireEntry = {
+  line: string   // "1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 a6"
+  move: string   // "6.Be3"
+  why: string    // requis : un coup sans raison ne compile pas
+}
+```
+
+  Ni PGN pur, ni structure d'objets imbriqués, et c'est délibéré. Le PGN ne porte aucune contrainte — ses commentaires sont optionnels par nature, donc la justification obligatoire de D6 disparaîtrait — et il est structurellement un arbre de variations imbriquées, soit l'anti-pattern exact que la clé EPD de D1 existe pour éviter. À l'inverse, un répertoire écrit en objets imbriqués cesse d'être lisible comme une ligne d'échecs.
+
+  **L'EPD n'est jamais saisi à la main :** il se calcule au chargement en rejouant les coups de `line`. Le graphe de D2 et les contradictions de D3 sont donc *dérivés*, pas déclarés — deux entrées dont la ligne aboutit au même EPD avec des `move` différents sont détectées par un test.
+
+  Prix assumé : ce n'est pas du PGN standard, donc pas importable tel quel dans Lichess. Générer un export PGN depuis cette structure est trivial ; faire porter une contrainte obligatoire par du PGN ne l'est pas.
+
+D6. Deux directions d'entraînement valent mieux que la répétition espacée classique, et sont ce qui distingue cet outil d'un Chessable : **exiger une raison écrite** pour tout coup du répertoire (cf. D5 — portée par le typage), et **entraîner la détection de la sortie de livre** plutôt que la récitation — l'application joue une partie et dévie à un moment imprévisible, c'est au joueur de remarquer qu'il n'est plus en terrain connu. Ces deux directions ne sont possibles que parce qu'il n'y a qu'un utilisateur : un champ obligatoire rédigé à la main détruirait la conversion d'un produit de masse.
 
 ### Questions ouvertes
 
 | # | Question | Pourquoi elle bloque |
 |---|---|---|
-| Q1 | Quel format exact pour le fichier source du répertoire — PGN annoté, ou une structure TypeScript typée ? | D4 a tranché que le répertoire est en dur ; reste le format. Une structure TypeScript permet de rendre la justification obligatoire par le typage, un PGN annoté est plus portable vers d'autres outils. |
-| Q2 | La clé est-elle l'EPD seul, ou le couple `(EPD, couleur du répertoire)` ? | Une même position peut appartenir au répertoire blanc et au noir avec des intentions différentes. À trancher avant la première structure de données. |
-| Q3 | Quels modes d'entraînement en v1, et faut-il de la répétition espacée d'emblée ? | La répétition espacée est peut-être prématurée avant que le répertoire ait une taille réelle. |
-| Q4 | Que fait hors ligne tout ce qui dépend de l'API Lichess Opening Explorer ? | Les dumps pèsent 2,9 Go (masters) à 22 Go : inembarquables. Soit ces fonctions exigent le réseau et dégradent proprement, soit on embarque un jeu ECO curé. **Bloquant pour D5** : dévier du répertoire suppose une source de coups adverses. |
-| Q5 | Quelle bibliothèque d'échiquier, et en faut-il une ? | Le répertoire étant édité dans l'IDE (D4), aucun échiquier interactif n'est nécessaire pour la **saisie**. Il en faut un pour l'**affichage** pendant le drill, et le besoin est bien plus modeste : `cm-chessboard` (maintenu, sans dépendance, SVG) suffirait, voire un rendu statique. |
+| Q1 | La clé est-elle l'EPD seul, ou le couple `(EPD, couleur du répertoire)` ? | Une même position peut appartenir au répertoire blanc et au noir avec des intentions différentes. À trancher avant la première structure de données. |
+| Q2 | Quels modes d'entraînement en v1, et faut-il de la répétition espacée d'emblée ? | La répétition espacée est peut-être prématurée avant que le répertoire ait une taille réelle. |
+| Q3 | Que fait hors ligne tout ce qui dépend de l'API Lichess Opening Explorer ? | Les dumps pèsent 2,9 Go (masters) à 22 Go : inembarquables. Soit ces fonctions exigent le réseau et dégradent proprement, soit on embarque un jeu ECO curé. **Bloquant pour D6** : dévier du répertoire suppose une source de coups adverses. |
+| Q4 | Quelle bibliothèque d'échiquier, et en faut-il une ? | Le répertoire étant édité dans l'IDE (D4), aucun échiquier interactif n'est nécessaire pour la **saisie**. Il en faut un pour l'**affichage** pendant le drill, et le besoin est bien plus modeste : `cm-chessboard` (maintenu, sans dépendance, SVG) suffirait, voire un rendu statique. |
 
 L'amorçage du répertoire depuis l'historique de ses propres parties a été examiné et **écarté comme source de vérité** : un répertoire dérivé de ses parties enregistre ce qu'on **a** joué, mauvaises habitudes comprises, alors qu'un répertoire est ce qu'on **devrait** jouer. Le garde-fou envisagé ne se déclenche jamais sur une erreur jouée systématiquement. La piste garde une valeur d'**audit** — comparer ses parties au répertoire pour voir où il a lâché — mais plus de valeur de sourcing depuis D4.
 
@@ -166,7 +181,7 @@ L'amorçage du répertoire depuis l'historique de ses propres parties a été ex
 
 H1. **Le journal de la partie en cours reste la seule donnée du navigateur qui compte** (R25 à R27). Il est jetable une fois la partie finie, donc aucune mesure de durabilité renforcée ne le concerne. Si un jour la progression de révision du répertoire devient précieuse, la question de la durabilité se reposera — pour elle seule, et pas pour le répertoire lui-même (cf. D4).
 
-H2. **Le drill du répertoire suppose une source de coups adverses** hors répertoire pour pouvoir dévier de façon imprévisible (D5). Tant que Q4 n'est pas tranchée, on ne sait pas si cette source est le réseau, un jeu ECO embarqué ou un moteur — et donc si le mode fonctionne hors ligne.
+H2. **Le drill du répertoire suppose une source de coups adverses** hors répertoire pour pouvoir dévier de façon imprévisible (D6). Tant que Q3 n'est pas tranchée, on ne sait pas si cette source est le réseau, un jeu ECO embarqué ou un moteur — et donc si le mode fonctionne hors ligne.
 
 **Contexte de jeu confirmé :** parties amicales et de club, pas de tournoi homologué. C'est ce qui justifie l'exclusion du multi-période, et ce n'est plus une hypothèse.
 
@@ -192,4 +207,4 @@ Un vrai rechargement se prouve en redémarrant le serveur de développement, pas
 
 **v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : interface des temps asymétriques, éditeur de cadences, export du journal si R28 n'a pas été fait en v1.
 
-**v3 — répertoire.** Ouvre par la réponse à Q1 et Q2, qui décident de tout le reste.
+**v3 — répertoire.** Ouvre par la réponse à Q1 (la clé) et Q3 (le comportement hors ligne), qui décident de tout le reste.
