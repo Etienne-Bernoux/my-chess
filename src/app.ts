@@ -14,7 +14,9 @@ import {
 import { DEFAULT_PRESET, PRESETS, presetById } from './presets/presets'
 import { queryElements, render } from './ui/render'
 import { createWebAudioCues, cueForTransition } from './audio/cues'
+import { createWakeLock } from './platform/wakeLock'
 import type { AudioSink } from './audio/cues'
+import type { ScreenWakeLock } from './platform/wakeLock'
 import type { OverlayMode } from './ui/render'
 import type { Clock } from './domain/clock'
 import type { KeyValueStore } from './persistence/store'
@@ -25,6 +27,7 @@ export type AppDeps = {
   readonly store: KeyValueStore
   readonly root?: ParentNode
   readonly audio?: AudioSink
+  readonly wakeLock?: ScreenWakeLock
 }
 
 export type App = {
@@ -43,6 +46,7 @@ export function createApp({
   store,
   root = document,
   audio = createWebAudioCues(),
+  wakeLock = createWakeLock(),
 }: AppDeps): App {
   const el = queryElements(root)
 
@@ -202,6 +206,10 @@ export function createApp({
     if (cue !== null && !silent) audio.play(cue)
     previousView = view
 
+    // L'écran ne doit rester allumé que pendant qu'une pendule tourne : ni en
+    // pause, ni après la chute du drapeau.
+    wakeLock.setDesired(view.phase === 'running')
+
     render(
       el,
       {
@@ -251,6 +259,7 @@ export function createApp({
     draw,
     dispose(): void {
       stopLoop()
+      wakeLock.dispose()
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('pagehide', stopLoop)
     },
