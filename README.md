@@ -14,6 +14,8 @@ Les deux fonctions existent ailleurs, séparément et mal ensemble. Les pendules
 
 Téléphone posé **à plat sur la table**, entre les deux joueurs. L'écran est coupé en deux moitiés, celle de l'adversaire pivotée à 180°. Les Noirs démarrent en tapant la moitié située du côté de leur adversaire, comme sur une vraie pendule.
 
+L'application s'ouvre sur un **écran d'accueil** : la cadence y est présélectionnée et confirmée avant qu'une partie ne parte sur la mauvaise, et une partie qu'on avait laissée en plan y est proposée à la reprise, temps écoulé pendant l'absence compris.
+
 Deux modes de cadence, et deux seulement : **Fischer** (temps initial + incrément, incrément nul compris — donc 5+0, 3+2, 5+3, 15+10) et **Bronstein**. Pas de multi-période, pas de délai américain, pas de byo-yomi : voir [`SPECS.md`](./SPECS.md) pour ce qui a été écarté et pourquoi.
 
 À la chute du drapeau, la pendule **constate sans arbitrer** — elle marque le camp concerné et n'écrit aucun résultat. Une pendule ne voit pas l'échiquier, donc elle ne peut pas savoir si le mat était encore possible.
@@ -69,3 +71,4 @@ Les icônes sont générées une fois par `node scripts/generate-icons.mjs` et v
 | [`SPECS.md`](./SPECS.md) | La spécification : périmètre, cadences, ergonomie, modèle de données, découpage des versions |
 | [`CLAUDE.md`](./CLAUDE.md) | Conventions du projet et contraintes techniques dures, pour moi comme pour Claude |
 | [`docs/ideation/`](./docs/ideation/) | Pistes explorées, retenues et écartées, avec leurs raisons |
+| [`docs/solutions/`](./docs/solutions/) | Pièges rencontrés pour de vrai, et ce qu'il fallait comprendre pour s'en sortir |
