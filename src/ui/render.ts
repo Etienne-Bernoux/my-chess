@@ -172,6 +172,20 @@ export function render(el: Elements, model: UiModel, now: number): void {
   el.undoButton.disabled = !model.canUndo
   el.menuButton.disabled = model.overlay !== 'none'
 
+  // Le même bouton ouvre la pause pendant la partie et les réglages avant : le
+  // glyphe ❚❚ annoncerait une pause là où il n'y a rien à arrêter. Un mot lève
+  // l'ambiguïté ; ❚❚ ne revient qu'une fois la pendule lancée, où il est lu sans
+  // hésitation et doit rester discret.
+  const running = view.phase === 'running'
+  const menuLabel = running ? 'Pause' : 'Réglages'
+  if (el.menuButton.textContent !== (running ? '❚❚' : menuLabel)) {
+    el.menuButton.textContent = running ? '❚❚' : menuLabel
+  }
+  if (el.menuButton.getAttribute('aria-label') !== menuLabel) {
+    el.menuButton.setAttribute('aria-label', menuLabel)
+  }
+  toggleClass(el.menuButton, 'band-button--wide', running)
+
   const open = model.overlay !== 'none'
   el.overlay.hidden = !open
   if (!open) return
