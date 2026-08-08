@@ -1,0 +1,301 @@
+:root {
+  --bg: #101014;
+  --band-bg: #04040a;
+  --band-height: 3.25rem;
+
+  --half-idle-bg: #1b1b22;
+  --half-idle-fg: #4e4e59;
+  --half-active-bg: #f1f1f4;
+  --half-active-fg: #0d0d12;
+  --half-urgent-bg: #f2b134;
+  --half-urgent-fg: #241800;
+  --half-flagged-bg: #b81f2d;
+  --half-flagged-fg: #fff0f0;
+  --half-confirm-bg: #2f9e63;
+  --half-confirm-fg: #f2fff7;
+
+  --panel-bg: #17171e;
+  --panel-fg: #e9e9ef;
+  --panel-muted: #8a8a97;
+  --accent: #4f8ef7;
+  --danger: #b81f2d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--panel-fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* La pendule est posée à plat : rien ne doit jamais défiler ni rebondir. */
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#app {
+  display: grid;
+  /* La piste `auto` de la bande a une hauteur fixe ; `min-content` sur les
+     moitiés les empêche d'être écrasées à côté d'elle sur un écran très court. */
+  grid-template-rows: minmax(min-content, 1fr) auto minmax(min-content, 1fr);
+  height: 100dvh;
+  width: 100vw;
+}
+
+/* ---------- Moitiés ---------- */
+
+.half {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  cursor: pointer;
+  background: var(--half-idle-bg);
+  color: var(--half-idle-fg);
+  /* Supprime le délai de double-tap et la sélection parasite : sur une pendule,
+     le délai compte. */
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 90ms linear, color 90ms linear;
+}
+
+.half:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -6px;
+}
+
+/* R5 : la moitié de l'adversaire est lue depuis l'autre côté de la table. */
+#half-top {
+  transform: rotate(180deg);
+}
+
+.clock {
+  /* R6 : la cible du tap est toujours la moitié, jamais le texte. */
+  pointer-events: none;
+  font-size: clamp(2.75rem, 17vh, 8rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Le camp au trait est franchement plus lumineux que l'autre : c'est ce
+   contraste qui rend un tap non pris visible en vision périphérique (R12). */
+.half.is-running {
+  background: var(--half-active-bg);
+  color: var(--half-active-fg);
+}
+
+.half.is-urgent {
+  background: var(--half-urgent-bg);
+  color: var(--half-urgent-fg);
+}
+
+/* R17 : la moitié dont le drapeau est tombé est marquée sans ambiguïté. */
+.half.is-flagged {
+  background: var(--half-flagged-bg);
+  color: var(--half-flagged-fg);
+}
+
+/* R12 : confirmation prioritaire au joueur qui vient de jouer, sur sa propre
+   moitié. Dérivée de `now - lastTapAt` par le fold, jamais d'un `setTimeout`. */
+.half.is-confirming {
+  background: var(--half-confirm-bg);
+  color: var(--half-confirm-fg);
+  transition: none;
+}
+
+/* ---------- Bande centrale (R10) ---------- */
+
+.band {
+  height: var(--band-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--band-bg);
+  position: relative;
+  z-index: 2;
+}
+
+.band-button {
+  appearance: none;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #23232c;
+  color: var(--panel-fg);
+  font-size: 1.05rem;
+  line-height: 1;
+  min-height: 2.25rem;
+  padding: 0 1.1rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.band-button--wide {
+  padding: 0 2.25rem;
+  letter-spacing: 0.15em;
+}
+
+.band-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ---------- Écran de pause (R11) ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgb(4 4 10 / 82%);
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.panel {
+  width: min(26rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.panel-hint,
+.panel-note {
+  margin: 0;
+  color: var(--panel-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.panel-hint:empty,
+.panel-note:empty {
+  display: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.field[hidden] {
+  display: none;
+}
+
+.field-label {
+  color: var(--panel-muted);
+  font-size: 0.85rem;
+}
+
+#preset-select {
+  appearance: none;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid #33333f;
+  background: #0e0e14;
+  color: var(--panel-fg);
+  font: inherit;
+}
+
+#preset-select:disabled {
+  opacity: 0.45;
+}
+
+#silent-toggle {
+  width: 1.4rem;
+  height: 1.4rem;
+  accent-color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.action {
+  appearance: none;
+  border: 1px solid #33333f;
+  border-radius: 0.6rem;
+  background: #23232c;
+  color: var(--panel-fg);
+  font: inherit;
+  /* Cible confortable au doigt sur un téléphone posé à plat. */
+  min-height: 3rem;
+  padding: 0 1rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.action[hidden] {
+  display: none;
+}
+
+.action--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06111f;
+  font-weight: 600;
+}
+
+.action--danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: #ff9aa3;
+}
+
+/* Media queries en fin de feuille : à spécificité égale, la dernière règle
+   gagne — les placer plus haut les ferait perdre. */
+
+/* Écran très court (téléphone en paysage, posé à plat) : on rend la bande et
+   les cadrans plus compacts plutôt que de laisser la grille déborder. */
+@media (max-height: 30rem) {
+  :root {
+    --band-height: 2.75rem;
+  }
+
+  .clock {
+    font-size: clamp(2rem, 13vh, 4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .half {
+    transition: none;
+  }
+}

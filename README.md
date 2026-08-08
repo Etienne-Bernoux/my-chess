@@ -2,7 +2,7 @@
 
 Deux outils d'échecs pour mon usage, dans une seule application installée sur mon téléphone : une **pendule** posée à plat entre les joueurs, et un **répertoire d'ouvertures** qu'on travaille pour de vrai.
 
-> **Statut : spécification.** Rien n'est encore implémenté. Le périmètre se construit dans [`SPECS.md`](./SPECS.md) ; les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
+> **Statut : pendule v1 implémentée** (exigences R1 à R30 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
 
 ## Pourquoi
 
@@ -38,10 +38,29 @@ Ouvrir l'URL dans Chrome sur Android, puis menu → « Ajouter à l'écran d'acc
 
 ```sh
 pnpm install
-pnpm dev
+pnpm dev         # serveur de développement
+pnpm test        # toute la logique de temps, horloge injectée
+pnpm typecheck   # TypeScript strict
+pnpm build       # bundle de production + service worker + manifest
+pnpm preview     # sert le build — le seul moyen de tester la PWA installée
 ```
 
-*(Scripts à confirmer une fois le squelette du projet posé.)*
+Le service worker est **désactivé en développement** : un cache périmé sur une pendule fait perdre du temps de diagnostic pour rien. Pour vérifier l'installation et le hors-ligne, passer par `pnpm build && pnpm preview`.
+
+Pour tester depuis le téléphone sur le réseau local : `pnpm preview --host`.
+
+Les icônes sont générées une fois par `node scripts/generate-icons.mjs` et versionnées ; le script ne tourne pas au build.
+
+### Où est quoi
+
+| Chemin | Rôle |
+|---|---|
+| `src/domain/fold.ts` | **Le cœur.** Dérive tout l'affichage du journal, en pur. Aucun temps n'y est décrémenté ailleurs |
+| `src/domain/commands.ts` | La seule couche autorisée à faire grandir le journal, append-only |
+| `src/domain/clock.ts` | L'interface `Clock` injectée, et le seul `Date.now()` du projet |
+| `src/persistence/` | Codec pur, adaptateur de stockage, journaux exportés rejouables en test |
+| `src/ui/` | Disposition, rendu idempotent, formatage |
+| `src/app.ts` | Racine de composition : horloge, stockage, audio et wake lock y sont injectés |
 
 ## Documentation
 
