@@ -138,14 +138,18 @@ body {
   font-size: 1.05rem;
   line-height: 1;
   min-height: 2.25rem;
+  /* Les deux boutons de la bande ont la même cible : leurs glyphes n'ont pas la
+     même chasse, donc c'est une largeur imposée qui les égalise, pas un padding
+     commun. Undo et pause se valent — on ne vise pas l'un mieux que l'autre. */
+  min-width: 7rem;
   padding: 0 1.1rem;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Ne porte plus que l'écartement du glyphe de pause : la largeur est commune. */
 .band-button--wide {
-  padding: 0 2.25rem;
   letter-spacing: 0.15em;
 }
 
