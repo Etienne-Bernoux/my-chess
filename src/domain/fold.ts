@@ -18,6 +18,7 @@ type State = {
   flagged: Half | null
   elapsedThisMove: number
   lastTapAt: number | null
+  lastTapHalf: Half | null
   cursor: number
 }
 
@@ -35,6 +36,7 @@ function initial(journal: Journal): State {
     flagged: null,
     elapsedThisMove: 0,
     lastTapAt: null,
+    lastTapHalf: null,
     cursor: first?.at ?? 0,
   }
 }
@@ -94,6 +96,7 @@ function apply(state: State, event: ClockEvent, journal: Journal): void {
       state.remaining[event.half] += gainFor(mode, incrementMs, state.elapsedThisMove)
       state.elapsedThisMove = 0
       state.lastTapAt = event.at
+      state.lastTapHalf = event.half
       state.running = otherHalf(event.half)
       return
     }
@@ -142,6 +145,7 @@ export function fold(journal: Journal, now: number): View {
     flagged: state.flagged,
     whiteHalf: state.started ? state.whiteHalf : null,
     lastTapAt: state.lastTapAt,
+    lastTapHalf: state.lastTapHalf,
     elapsedThisMove: state.elapsedThisMove,
     mode: journal.timeControl.mode,
     incrementMs: journal.timeControl.incrementMs,

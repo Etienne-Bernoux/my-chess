@@ -2,12 +2,68 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
     <meta name="theme-color" content="#101014" />
-    <title>myChess</title>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>myChess — pendule</title>
   </head>
   <body>
-    <div id="app"></div>
+    <!--
+      R5 : deux moitiés horizontales, celle de l'adversaire pivotée à 180°.
+      R6 : chaque moitié est entièrement une zone de tap — aucun contrôle
+      secondaire à l'intérieur ; l'horloge est purement décorative pour le
+      pointeur (`pointer-events: none` en CSS).
+    -->
+    <main id="app">
+      <button type="button" class="half" id="half-top" aria-label="Moitié haute">
+        <span class="clock" id="clock-top">0:00</span>
+      </button>
+
+      <!-- R10 : bande centrale étroite, hors des deux zones de tap. -->
+      <div class="band" id="band">
+        <button type="button" class="band-button" id="undo-button" aria-label="Annuler le dernier coup">
+          ⟲
+        </button>
+        <button type="button" class="band-button band-button--wide" id="menu-button" aria-label="Pause">
+          ❚❚
+        </button>
+      </div>
+
+      <button type="button" class="half" id="half-bottom" aria-label="Moitié basse">
+        <span class="clock" id="clock-bottom">0:00</span>
+      </button>
+    </main>
+
+    <!-- R11 : le reset n'est atteignable que d'ici, jamais en un seul geste. -->
+    <div class="overlay" id="overlay" hidden>
+      <section class="panel" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+        <h1 class="panel-title" id="overlay-title">Pause</h1>
+        <p class="panel-hint" id="overlay-hint"></p>
+
+        <label class="field" id="preset-field">
+          <span class="field-label">Cadence</span>
+          <select id="preset-select"></select>
+        </label>
+
+        <label class="field field--row">
+          <input type="checkbox" id="silent-toggle" />
+          <span class="field-label">Mode silencieux</span>
+        </label>
+
+        <div class="actions">
+          <button type="button" class="action action--primary" id="resume-button">Reprendre</button>
+          <button type="button" class="action" id="close-button">Fermer</button>
+          <button type="button" class="action" id="export-button">Exporter le journal</button>
+          <button type="button" class="action action--danger" id="reset-button">Nouvelle partie</button>
+        </div>
+
+        <p class="panel-note" id="overlay-note"></p>
+      </section>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

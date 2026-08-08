@@ -58,7 +58,9 @@ export type View = {
   readonly running: Half | null
   readonly flagged: Half | null
   readonly whiteHalf: Half | null
+  /** Le cédant du dernier coup et l'instant où il a rendu la main — R12. */
   readonly lastTapAt: number | null
+  readonly lastTapHalf: Half | null
   readonly elapsedThisMove: number
   readonly mode: IncrementMode
   readonly incrementMs: number
