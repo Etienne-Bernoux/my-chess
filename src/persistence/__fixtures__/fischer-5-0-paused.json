@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "timeControl": {
+    "id": "blitz-5-0-fischer",
+    "label": "Blitz 5+0",
+    "mode": "fischer",
+    "initialMs": { "white": 300000, "black": 300000 },
+    "incrementMs": 0
+  },
+  "events": [
+    { "type": "start", "at": 1000, "whiteHalf": "top" },
+    { "type": "tap", "at": 13000, "half": "top" },
+    { "type": "tap", "at": 21000, "half": "bottom" },
+    { "type": "tap", "at": 26000, "half": "top" },
+    { "type": "tap", "at": 29000, "half": "bottom" },
+    { "type": "pause", "at": 31000 },
+    { "type": "resume", "at": 91000 },
+    { "type": "tap", "at": 95000, "half": "top" },
+    { "type": "tap", "at": 105000, "half": "bottom" }
+  ]
+}

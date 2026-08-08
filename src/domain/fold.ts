@@ -51,7 +51,8 @@ const assignInitial = (whiteHalf: Half, white: number, black: number): Record<Ha
  * drapeau tombe à l'échéance, pas à la première frame après le retour.
  */
 function advance(state: State, to: number): void {
-  // KTD2 : une horloge murale peut sauter en arrière (NTP). On fige, on ne rend jamais de temps.
+  // KTD2 : une horloge murale peut sauter en arrière (NTP, réglage manuel). On
+  // fige, on ne rend jamais de temps.
   const dt = Math.max(0, to - state.cursor)
   const running = state.running
 
@@ -69,7 +70,10 @@ function advance(state: State, to: number): void {
     }
   }
 
-  state.cursor = to
+  // Le curseur est une ligne de plus haute eau, jamais une simple affectation :
+  // le poser en arrière ferait mesurer l'intervalle SUIVANT depuis une position
+  // fausse, et surfacturerait le joueur au trait bien après le saut d'horloge.
+  state.cursor = Math.max(state.cursor, to)
 }
 
 /**
@@ -125,6 +129,12 @@ function phaseOf(state: State): Phase {
  * R20 : tout ce qui s'affiche est dérivé du journal par cette fonction, et rien
  * d'autre n'est écrit en parallèle. Pure : mêmes entrées, même sortie, aucun
  * accès à l'horloge ni au stockage.
+ *
+ * `now` est l'instant courant, attendu au niveau ou après le dernier événement —
+ * ce que la couche commande garantit, puisqu'elle n'écrit qu'au présent. Ce
+ * n'est pas une machine à remonter le temps : tous les événements du journal
+ * sont appliqués, puis le temps est avancé jusqu'à `now`. Pour observer un état
+ * intermédiaire, on tronque le journal, on ne recule pas `now`.
  */
 export function fold(journal: Journal, now: number): View {
   const state = initial(journal)

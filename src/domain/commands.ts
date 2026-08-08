@@ -18,13 +18,23 @@ export const newJournal = (timeControl: TimeControl): Journal => ({
 })
 
 /**
- * Invariant du journal : tout horodatage écrit est entier (R23). L'horloge en
- * fournit déjà, mais c'est ici que l'invariant est tenu — au seul point d'entrée.
+ * Deux invariants du journal, tenus ici parce que c'est le seul point d'écriture.
+ *
+ * Horodatages entiers (R23) — l'horloge en fournit déjà ; ce plancher couvre un
+ * appelant qui n'en viendrait pas. Les durées de la cadence, elles, sont
+ * validées à leur propre frontière (`presets.ts`, `codec.ts`).
+ *
+ * Horodatages non décroissants — une horloge murale peut sauter en arrière, et
+ * un journal dont les instants reculent n'est pas rejouable. On plafonne par le
+ * bas plutôt que d'écrire un événement antérieur au précédent : le coup se voit
+ * alors attribuer une durée nulle, ce qui est faux mais borné, là où un
+ * horodatage en arrière fausserait tous les coups suivants.
  */
-const append = (journal: Journal, event: ClockEvent): Journal => ({
-  ...journal,
-  events: [...journal.events, { ...event, at: Math.floor(event.at) }],
-})
+const append = (journal: Journal, event: ClockEvent): Journal => {
+  const previous = journal.events[journal.events.length - 1]
+  const at = Math.max(Math.floor(event.at), previous?.at ?? Number.NEGATIVE_INFINITY)
+  return { ...journal, events: [...journal.events, { ...event, at }] }
+}
 
 /**
  * R8 : les Noirs lancent la pendule en tapant la moitié située du côté de leur
@@ -57,12 +67,15 @@ export function resume(journal: Journal, at: number): Journal | null {
  * rejouer restitue le temps exact, parce que le fold est pur — il n'y a aucun
  * état sauvegardé à défaire.
  *
- * Reste possible après la chute du drapeau : on a pu taper trop tard, et rendre
- * l'état d'avant ce tap est le comportement attendu. La pendule ne sauve
- * personne pour autant — le drapeau retombe au rejeu.
+ * Refusé une fois le drapeau tombé, et ce n'est pas une précaution : retirer le
+ * tap qui précède une chute rend la main au cédant DEPUIS son propre tap, donc
+ * lui fait payer la réflexion de son adversaire — le drapeau retombe alors sur
+ * l'autre joueur. Un seul geste, irréversible, qui change le perdant. Après la
+ * chute, la pendule ne réécrit plus rien.
  */
-export function undo(journal: Journal): Journal | null {
+export function undo(journal: Journal, at: number): Journal | null {
   const last = journal.events[journal.events.length - 1]
   if (last?.type !== 'tap') return null
+  if (fold(journal, at).flagged !== null) return null
   return { ...journal, events: journal.events.slice(0, -1) }
 }

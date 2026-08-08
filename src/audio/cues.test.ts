@@ -80,6 +80,24 @@ describe('cueForTransition — seuil des dix secondes (R13)', () => {
     const after = at(tap(journalFischer, START_AT + 1_000, WHITE)!, START_AT + 1_000)
     expect(cueForTransition(before, after)).toBeNull()
   })
+
+  it('un franchissement survenu dans la même frame que le tap n’est pas perdu', () => {
+    // Blancs 12 s, mort subite. Ils franchissent les 10 s à START_AT + 2 000 et
+    // rendent la main au même instant : leur moitié ne tourne plus dans la vue
+    // courante, mais le signal leur est dû — et sous le seuil, la condition ne
+    // redeviendrait plus jamais vraie.
+    const j = start(
+      newJournal(tc({ initialMs: { white: 12_000, black: 180_000 }, incrementMs: 0 })),
+      START_AT,
+      WHITE,
+    )!
+    const before = at(j, START_AT + 1_500)
+    const after = at(tap(j, START_AT + 2_001, WHITE)!, START_AT + 2_001)
+
+    expect(after.running).toBe('top')
+    expect(after.remaining.bottom).toBeLessThan(10_000)
+    expect(cueForTransition(before, after)).toBe('urgent')
+  })
 })
 
 describe('cueForTransition — chute du drapeau (R13, R17)', () => {

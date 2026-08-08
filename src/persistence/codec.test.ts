@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseJournal, serialize } from './codec'
 import { newJournal, pause, start, tap } from '../domain/commands'
 import { fold } from '../domain/fold'
 import {
+  browserStore,
   clearJournal,
   isResumable,
   loadJournal,
@@ -26,6 +28,10 @@ const tc = (over: Partial<TimeControl> = {}): TimeControl => ({
   initialMs: { white: 180_000, black: 180_000 },
   incrementMs: 2_000,
   ...over,
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 const midGame = (control = tc()): Journal => {
@@ -155,6 +161,50 @@ describe('store — reprise (R25, R26)', () => {
     saveJournal(store, midGame())
     clearJournal(store)
     expect(loadJournal(store).ok).toBe(false)
+  })
+})
+
+describe('browserStore — dégradation', () => {
+  it('sans localStorage utilisable, dégrade en mémoire au lieu de jeter', () => {
+    vi.stubGlobal('localStorage', {
+      setItem: () => {
+        throw new Error('mode privé')
+      },
+      getItem: () => null,
+      removeItem: () => {},
+    })
+
+    const store = browserStore()
+    expect(() => store.write('k', 'v')).not.toThrow()
+    expect(store.read('k')).toBe('v')
+  })
+
+  it('un quota dépassé n’interrompt jamais une partie en cours', () => {
+    const data = new Map<string, string>()
+    let probed = false
+    vi.stubGlobal('localStorage', {
+      setItem: (key: string) => {
+        // La sonde d'ouverture passe ; les écritures réelles échouent ensuite.
+        if (!probed) {
+          probed = true
+          return
+        }
+        if (key === '__mychess_probe__') return
+        throw new Error('QuotaExceededError')
+      },
+      getItem: (key: string) => data.get(key) ?? null,
+      removeItem: (key: string) => void data.delete(key),
+    })
+
+    const store = browserStore()
+    expect(() => saveJournal(store, midGame())).not.toThrow()
+  })
+
+  it('sans objet localStorage du tout, browserStore reste utilisable', () => {
+    vi.stubGlobal('localStorage', undefined)
+    const store = browserStore()
+    expect(() => store.write('k', 'v')).not.toThrow()
+    expect(store.read('k')).toBe('v')
   })
 })
 

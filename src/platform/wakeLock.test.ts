@@ -3,22 +3,30 @@ import { describe, expect, it } from 'vitest'
 import { createWakeLock, resolveRequester } from './wakeLock'
 import type { WakeLockHandle } from './wakeLock'
 
+type MutableHandle = { released: boolean; release: () => Promise<void> }
+
 function fakeRequester(): {
   request: () => Promise<WakeLockHandle>
   requests: number
   releases: number
+  handles: MutableHandle[]
 } {
   const state = {
     requests: 0,
     releases: 0,
+    handles: [] as MutableHandle[],
     request: (): Promise<WakeLockHandle> => {
       state.requests += 1
-      return Promise.resolve({
+      const handle: MutableHandle = {
+        released: false,
         release: (): Promise<void> => {
           state.releases += 1
+          handle.released = true
           return Promise.resolve()
         },
-      })
+      }
+      state.handles.push(handle)
+      return Promise.resolve(handle)
     },
   }
   return state
@@ -89,6 +97,46 @@ describe('createWakeLock', () => {
 
     expect(fake.requests).toBe(1)
     expect(fake.releases).toBe(1)
+  })
+
+  it('un verrou relâché par le navigateur est redemandé, pas tenu pour acquis', async () => {
+    const fake = fakeRequester()
+    const lock = createWakeLock(fake.request)
+
+    lock.setDesired(true)
+    await settle()
+    expect(fake.requests).toBe(1)
+
+    // Le navigateur relâche de lui-même (batterie faible, écran éteint au bouton) :
+    // ni `release()` de notre part, ni changement de visibilité.
+    fake.handles[0]!.released = true
+
+    // L'état voulu n'a pas changé — c'est justement le cas qui court-circuitait.
+    lock.setDesired(true)
+    await settle()
+    expect(fake.requests).toBe(2)
+  })
+
+  it('une demande refusée n’est pas retentée à chaque frame', async () => {
+    let attempts = 0
+    const lock = createWakeLock(() => {
+      attempts += 1
+      return Promise.reject(new Error('batterie faible'))
+    })
+
+    lock.setDesired(true)
+    await settle()
+    for (let i = 0; i < 10; i += 1) {
+      lock.setDesired(true)
+      await settle()
+    }
+    expect(attempts).toBe(1)
+
+    // Un vrai changement d'état rouvre le droit d'essayer.
+    lock.setDesired(false)
+    lock.setDesired(true)
+    await settle()
+    expect(attempts).toBe(2)
   })
 
   it('un environnement sans Screen Wake Lock ne jette jamais', () => {

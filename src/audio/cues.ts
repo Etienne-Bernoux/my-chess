@@ -1,5 +1,5 @@
-import { URGENT_BELOW_MS } from '../ui/format'
-import type { View } from '../domain/types'
+import { URGENT_BELOW_MS } from '../domain/types'
+import type { Half, View } from '../domain/types'
 
 /** R13 : deux signatures sonores distinctes, pas deux variantes du même bip. */
 export type Cue = 'urgent' | 'flag'
@@ -19,6 +19,8 @@ export interface AudioSink {
  * pendant que l'application était en arrière-plan : la comparaison porte sur
  * deux vues, pas sur l'écoulement réel du temps.
  */
+const HALVES: readonly Half[] = ['top', 'bottom']
+
 export function cueForTransition(previous: View | null, current: View): Cue | null {
   if (previous === null) return null
 
@@ -26,12 +28,16 @@ export function cueForTransition(previous: View | null, current: View): Cue | nu
   // transition ne doit pas produire aussi le signal des dix secondes.
   if (previous.flagged === null && current.flagged !== null) return 'flag'
 
-  const running = current.running
-  if (running === null) return null
-
-  const before = previous.remaining[running]
-  const after = current.remaining[running]
-  return before >= URGENT_BELOW_MS && after < URGENT_BELOW_MS ? 'urgent' : null
+  // Les DEUX moitiés sont examinées, pas seulement celle qui tourne : quand le
+  // franchissement tombe dans la même frame que le tap, la moitié concernée
+  // vient de s'arrêter, et ne regarder que le trait perdrait le signal pour
+  // toujours — sous le seuil, la condition ne redeviendrait jamais vraie.
+  return HALVES.some(
+    (half) =>
+      previous.remaining[half] >= URGENT_BELOW_MS && current.remaining[half] < URGENT_BELOW_MS,
+  )
+    ? 'urgent'
+    : null
 }
 
 /** Sink neutre : mode silencieux (R15), environnement sans Web Audio, tests. */

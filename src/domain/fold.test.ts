@@ -233,6 +233,28 @@ describe('fold — arrière-plan et idempotence (R21)', () => {
     const reference = fold(j, lastAt(j))
     expect(fold(j, lastAt(j) - 3_000)).toEqual(reference)
   })
+
+  it('le curseur ne recule pas : un événement antérieur ne surfacture pas la suite', () => {
+    // Un journal dont un horodatage recule (horloge murale recalée avant que la
+    // commande ne le rattrape). Sans curseur en ligne de plus haute eau, le pas
+    // suivant serait mesuré depuis le passé et surfacturerait le joueur au trait.
+    const recule = withEvents(tc(), [
+      { type: 'start', at: START_AT, whiteHalf: WHITE },
+      { type: 'tap', at: START_AT + 10_000, half: WHITE },
+      { type: 'tap', at: START_AT + 7_000, half: BLACK },
+    ])
+    const droit = withEvents(tc(), [
+      { type: 'start', at: START_AT, whiteHalf: WHITE },
+      { type: 'tap', at: START_AT + 10_000, half: WHITE },
+      { type: 'tap', at: START_AT + 10_000, half: BLACK },
+    ])
+
+    // Les Noirs n'ont pas consommé de temps négatif, et surtout les Blancs ne
+    // sont pas facturés depuis un curseur reculé lors du pas suivant.
+    const at = START_AT + 14_000
+    expect(fold(recule, at).remaining[WHITE]).toBe(fold(droit, at).remaining[WHITE])
+    expect(fold(recule, at).remaining[BLACK]).toBe(fold(droit, at).remaining[BLACK])
+  })
 })
 
 describe('fold — pause et reprise', () => {

@@ -1,4 +1,5 @@
-import { TENTHS_BELOW_MS, URGENT_BELOW_MS, formatRemaining } from './format'
+import { TENTHS_BELOW_MS, formatRemaining } from './format'
+import { URGENT_BELOW_MS } from '../domain/types'
 import type { Half, TimeControl, View } from '../domain/types'
 
 /**

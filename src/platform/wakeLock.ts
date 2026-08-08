@@ -5,8 +5,14 @@
  * rester retirable en une suppression d'import.
  */
 
-/** Sous-ensemble de `WakeLockSentinel` réellement utilisé — donc simulable. */
+/**
+ * Sous-ensemble de `WakeLockSentinel` réellement utilisé — donc simulable.
+ * `released` en fait partie : le navigateur relâche le verrou de son propre chef
+ * (batterie faible, écran éteint au bouton, politique constructeur), et sans ce
+ * drapeau on garderait indéfiniment un verrou mort en croyant le tenir.
+ */
 export interface WakeLockHandle {
+  readonly released: boolean
   release(): Promise<void>
 }
 
@@ -30,11 +36,18 @@ export function createWakeLock(
   let desired = false
   let handle: WakeLockHandle | null = null
   let pending = false
+  // Une demande refusée n'est pas retentée à chaque frame : on attend un
+  // changement d'état réel, sinon un appareil en batterie faible passerait la
+  // partie à redemander un verrou qu'il ne donnera pas.
+  let refused = false
 
   const sync = (): void => {
     if (requester === null) return
 
-    if (desired && handle === null && !pending && !document.hidden) {
+    // Un verrou relâché par le navigateur est un verrou perdu, pas un verrou tenu.
+    if (handle?.released === true) handle = null
+
+    if (desired && handle === null && !pending && !refused && !document.hidden) {
       pending = true
       requester().then(
         (acquired) => {
@@ -47,6 +60,7 @@ export function createWakeLock(
           // Verrou refusé (batterie faible, permission) : c'est un confort, pas
           // un prérequis. On n'insiste pas et la pendule reste juste.
           pending = false
+          refused = true
         },
       )
       return
@@ -70,8 +84,12 @@ export function createWakeLock(
 
   return {
     setDesired(on: boolean): void {
-      if (on === desired) return
-      desired = on
+      if (on !== desired) {
+        desired = on
+        refused = false
+      }
+      // Appelé sans court-circuit même à état inchangé : c'est ce qui permet de
+      // récupérer un verrou que le navigateur a relâché sous nous en pleine partie.
       sync()
     },
 

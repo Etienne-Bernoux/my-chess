@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import HTML from '../index.html?raw'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from './app'
 import { TestClock } from './domain/clock'
+import { parseJournal } from './persistence/codec'
 import { loadJournal, memoryStore } from './persistence/store'
 import type { App } from './app'
 import type { AudioSink, Cue } from './audio/cues'
@@ -81,6 +82,7 @@ beforeEach(() => {
 
 afterEach(() => {
   app.dispose()
+  vi.unstubAllGlobals()
 })
 
 describe('démarrage (R8)', () => {
@@ -146,6 +148,28 @@ describe('taps en partie (R7, R9)', () => {
     expect(document.querySelector('#half-bottom')!.classList.contains('is-flagged')).toBe(true)
     expect(text('#clock-bottom')).toBe('0.0')
     expect(document.querySelector('#half-top')!.classList.contains('is-flagged')).toBe(false)
+  })
+
+  it('R18 : après la chute, l’écran explique sans attribuer de résultat', () => {
+    press('half-bottom')
+    clock.set(START_AT + 3 * 60_000 + 1)
+    app.draw()
+
+    click('menu-button')
+    expect(text('#overlay-title')).toMatch(/drapeau/i)
+    expect(document.body.textContent ?? '').not.toMatch(/vainqueur|gagn|perdu|1-0|0-1/i)
+  })
+
+  it('R24 : l’undo est refusé et grisé une fois le drapeau tombé', () => {
+    press('half-bottom')
+    clock.set(6_000)
+    press('half-bottom') // les Noirs prennent la main
+    clock.set(6_000 + 3 * 60_000 + 1) // ils tombent
+    app.draw()
+
+    expect(document.querySelector<HTMLButtonElement>('#undo-button')!.disabled).toBe(true)
+    click('undo-button')
+    expect(types(journal().events)).toEqual(['start', 'tap'])
   })
 })
 
@@ -223,6 +247,63 @@ describe('écran de pause (R11, R15)', () => {
 
     press('half-bottom')
     expect(types(journal().events)).toEqual(['start', 'pause'])
+  })
+})
+
+describe('export du journal (R28)', () => {
+  const openWithGame = (): void => {
+    press('half-bottom')
+    clock.set(6_000)
+    press('half-bottom')
+    click('menu-button')
+  }
+
+  it('sans presse-papiers, le journal est affiché pour être copié à la main', () => {
+    vi.stubGlobal('navigator', {})
+    openWithGame()
+    click('export-button')
+
+    const note = text('#overlay-note')
+    expect(note).toContain('"type":"start"')
+    // Le format d'export EST le format de stockage : il se reparse tel quel.
+    expect(parseJournal(note).ok).toBe(true)
+  })
+
+  it('avec presse-papiers, le journal y est copié et la copie est confirmée', async () => {
+    let copied = ''
+    vi.stubGlobal('navigator', {
+      clipboard: {
+        writeText: (value: string) => {
+          copied = value
+          return Promise.resolve()
+        },
+      },
+    })
+    openWithGame()
+    click('export-button')
+    await Promise.resolve()
+    app.draw()
+
+    expect(parseJournal(copied).ok).toBe(true)
+    expect(text('#overlay-note')).toMatch(/presse-papiers/i)
+  })
+
+  it('si la copie échoue, le journal reste récupérable à l’écran', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: () => Promise.reject(new Error('refusé')) },
+    })
+    openWithGame()
+    click('export-button')
+    await Promise.resolve()
+    await Promise.resolve()
+    app.draw()
+
+    expect(parseJournal(text('#overlay-note')).ok).toBe(true)
+  })
+
+  it('rien à exporter avant le premier coup', () => {
+    click('menu-button')
+    expect(hidden('#export-button')).toBe(true)
   })
 })
 

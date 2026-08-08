@@ -8,7 +8,12 @@ export default defineConfig({
 
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      // Surtout pas `autoUpdate` : la prise de contrôle d'un nouveau service
+      // worker recharge la page, et en pleine partie cela renvoie sur l'écran de
+      // reprise pendant que le temps continue de couler. En `prompt` sans
+      // interface de confirmation, la mise à jour attend simplement la prochaine
+      // ouverture à froid.
+      registerType: 'prompt',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'myChess — pendule',

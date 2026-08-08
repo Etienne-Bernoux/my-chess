@@ -4,9 +4,6 @@
  */
 export const TENTHS_BELOW_MS = 20_000
 
-/** Seuil des dix dernières secondes — signature sonore et bascule visuelle (R13). */
-export const URGENT_BELOW_MS = 10_000
-
 export function formatRemaining(ms: number): string {
   // Le fold garantit des entiers positifs (R23) ; ce garde-fou protège de
   // l'affichage d'un `NaN` si un appelant se trompe, pas d'un bug du domaine.

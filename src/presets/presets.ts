@@ -70,6 +70,8 @@ function loadPresets(): readonly TimeControl[] {
 
 export const PRESETS: readonly TimeControl[] = loadPresets()
 
+// `loadPresets` échoue plus haut sur un tableau vide : PRESETS[0] existe donc
+// toujours, et c'est ce contrôle qui justifie l'assertion.
 export const DEFAULT_PRESET: TimeControl = PRESETS[0]!
 
 /** R30 : un identifiant inconnu retombe sur le premier preset plutôt que d'échouer. */

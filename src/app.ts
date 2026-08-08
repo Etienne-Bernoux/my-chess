@@ -76,7 +76,9 @@ export function createApp({
     return true
   }
 
-  const canUndo = (): boolean => journal.events[journal.events.length - 1]?.type === 'tap'
+  // Interroge la commande elle-même plutôt que de redire ses conditions : le
+  // bouton est grisé exactement quand l'undo serait refusé.
+  const canUndo = (now: number): boolean => undo(journal, now) !== null
 
   const selectedPresetId = (): string =>
     PRESETS.some((p) => p.id === journal.timeControl.id)
@@ -124,7 +126,7 @@ export function createApp({
   // ---------- Bande centrale (R10, R24) ----------
 
   el.undoButton.addEventListener('click', () => {
-    if (overlay === 'none') commit(undo(journal))
+    if (overlay === 'none') commit(undo(journal, clock.now()))
   })
 
   el.menuButton.addEventListener('click', () => {
@@ -216,7 +218,7 @@ export function createApp({
         view,
         overlay,
         silent,
-        canUndo: canUndo(),
+        canUndo: canUndo(now),
         canExport: journal.events.length > 0,
         presets: PRESETS,
         selectedPresetId: selectedPresetId(),
@@ -249,8 +251,15 @@ export function createApp({
     else startLoop()
   }
 
+  // `pageshow` est indispensable en regard de `pagehide` : une restauration
+  // depuis le bfcache ne passe pas forcément par `visibilitychange`, et la
+  // boucle resterait alors arrêtée. L'écran garderait la dernière frame rendue
+  // pendant que l'état, lui, continue de courir — la pendule mentirait.
+  const onPageShow = (): void => startLoop()
+
   document.addEventListener('visibilitychange', onVisibilityChange)
   window.addEventListener('pagehide', stopLoop)
+  window.addEventListener('pageshow', onPageShow)
 
   draw()
   startLoop()
@@ -262,6 +271,7 @@ export function createApp({
       wakeLock.dispose()
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('pagehide', stopLoop)
+      window.removeEventListener('pageshow', onPageShow)
     },
   }
 }

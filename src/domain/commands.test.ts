@@ -19,6 +19,9 @@ const tc = (over: Partial<TimeControl> = {}): TimeControl => ({
 /** R8 : les Noirs lancent en tapant la moitié adverse — ici celle du bas. */
 const started = (control = tc()): Journal => start(newJournal(control), START_AT, WHITE)!
 
+/** `undo` a besoin de l'instant courant pour savoir si le drapeau est tombé. */
+const undoAt = (journal: Journal, at = START_AT): Journal | null => undo(journal, at)
+
 /** Joue une alternance de coups depuis un journal démarré. */
 function play(journal: Journal, durations: readonly number[]): Journal {
   let current = journal
@@ -114,7 +117,7 @@ describe('undo (R24)', () => {
     const played = play(started(), GAME)
     const before = fold(played, END)
 
-    const undone = undo(played)!
+    const undone = undoAt(played)!
     const replayed = tap(undone, END, BLACK)!
 
     expect(fold(replayed, END)).toEqual(before)
@@ -123,7 +126,7 @@ describe('undo (R24)', () => {
 
   it('undo restitue le temps exact d’avant le tap', () => {
     const played = play(started(), GAME)
-    const undone = undo(played)!
+    const undone = undoAt(played)!
 
     const v = fold(undone, END)
     // Les Noirs tournaient encore et n’ont pas encore touché leur incrément.
@@ -134,27 +137,51 @@ describe('undo (R24)', () => {
 
   it('deux undo successifs remontent de deux taps', () => {
     const played = play(started(), GAME)
-    const twice = undo(undo(played)!)!
+    const twice = undoAt(undoAt(played)!)!
     expect(twice.events).toHaveLength(played.events.length - 2)
     expect(fold(twice, END).running).toBe(WHITE)
   })
 
   it('undo est refusé si le dernier événement n’est pas un tap', () => {
-    expect(undo(started())).toBeNull()
-    expect(undo(pause(play(started(), GAME), END + 1_000)!)).toBeNull()
-    expect(undo(newJournal(tc()))).toBeNull()
+    expect(undoAt(started())).toBeNull()
+    expect(undoAt(pause(play(started(), GAME), END + 1_000)!)).toBeNull()
+    expect(undoAt(newJournal(tc()))).toBeNull()
   })
 
-  it('le tap qui a précédé la chute du drapeau reste annulable', () => {
-    const control = tc({ initialMs: { white: 180_000, black: 4_000 } })
+  it('undo est refusé une fois le drapeau tombé — sinon il transfère le drapeau', () => {
+    // Blancs 3 s, Noirs 4 s, mort subite. Blanc tape après 1 s (il lui reste 2 s),
+    // Noir réfléchit et tombe à 6 000.
+    const control = tc({ initialMs: { white: 3_000, black: 4_000 }, incrementMs: 0 })
     const played = tap(started(control), START_AT + 1_000, WHITE)!
-    // Les Noirs disposent de 4 000 ms : le drapeau tombe à START_AT + 5 000.
     expect(fold(played, START_AT + 5_000).flagged).toBe(BLACK)
 
-    const undone = undo(played)!
-    const v = fold(undone, START_AT + 5_000)
-    expect(v.flagged).toBeNull()
-    expect(v.running).toBe(WHITE)
+    expect(undoAt(played, START_AT + 5_000)).toBeNull()
+
+    // Ce que le refus empêche : sans le tap, Blanc serait au trait depuis le
+    // début et paierait la réflexion de Noir — c'est LUI qui tomberait.
+    const sansLeTap = { ...played, events: played.events.slice(0, -1) }
+    expect(fold(sansLeTap, START_AT + 5_000).flagged).toBe(WHITE)
+  })
+
+  it('avant la chute, le dernier tap reste annulable', () => {
+    const control = tc({ initialMs: { white: 3_000, black: 4_000 }, incrementMs: 0 })
+    const played = tap(started(control), START_AT + 1_000, WHITE)!
+    expect(undoAt(played, START_AT + 2_000)).not.toBeNull()
+  })
+})
+
+describe('horodatages non décroissants (R19, R23)', () => {
+  it('un horodatage antérieur au précédent est plafonné, jamais écrit tel quel', () => {
+    const j = started()
+    // L'horloge murale a reculé entre le démarrage et le tap.
+    const recule = tap(j, START_AT - 5_000, WHITE)!
+    expect(recule.events[1]!.at).toBe(START_AT)
+  })
+
+  it('le journal reste ordonné après une suite de commandes', () => {
+    const played = play(started(), [5_000, 3_000, 10_000])
+    const ats = played.events.map((e) => e.at)
+    expect(ats).toEqual([...ats].sort((a, b) => a - b))
   })
 })
 
@@ -167,7 +194,7 @@ describe('append-only (R19)', () => {
     tap(j, START_AT + 1_000, BLACK)
     pause(j, START_AT + 1_000)
     resume(j, START_AT + 1_000)
-    undo(j)
+    undoAt(j)
     start(j, START_AT + 1_000, BLACK)
 
     expect(JSON.stringify(j)).toBe(snapshot)

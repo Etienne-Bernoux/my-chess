@@ -5,9 +5,14 @@
  */
 export type Half = 'top' | 'bottom'
 
-export type Side = 'white' | 'black'
-
 export type IncrementMode = 'fischer' | 'bronstein'
+
+/**
+ * Seuil des dix dernières secondes. Il vit dans le domaine parce que deux
+ * couches indépendantes en dépendent — la signature sonore (R13) et la bascule
+ * visuelle — et qu'elles doivent franchir le même seuil au même instant.
+ */
+export const URGENT_BELOW_MS = 10_000
 
 export const otherHalf = (half: Half): Half => (half === 'top' ? 'bottom' : 'top')
 
@@ -65,8 +70,5 @@ export type View = {
   readonly mode: IncrementMode
   readonly incrementMs: number
 }
-
-export const sideOfHalf = (half: Half, whiteHalf: Half): Side =>
-  half === whiteHalf ? 'white' : 'black'
 
 export const JOURNAL_VERSION = 1 as const
