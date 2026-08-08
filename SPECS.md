@@ -1,0 +1,187 @@
+---
+date: 2026-08-08
+projet: myChess
+portee: pendule v1 detaillee, repertoire en orientations
+---
+
+# myChess — spécification
+
+Ce document dit **quoi** construire et **pourquoi**, pas comment le coder. Les pistes explorées et écartées, avec leurs raisons, sont dans [`docs/ideation/2026-08-08-mychess-ideation.md`](./docs/ideation/2026-08-08-mychess-ideation.md). Les contraintes techniques permanentes du projet sont dans [`CLAUDE.md`](./CLAUDE.md).
+
+**Périmètre de ce document.** La pendule est spécifiée en exigences implémentables. Le répertoire d'ouvertures n'a que ses décisions d'architecture déjà solides et la liste de ce qui reste à trancher — le spécifier finement aujourd'hui serait deviner, et cette spec serait périmée avant d'être utilisée : construire la pendule va apprendre des choses sur la persistance, la vérification et l'ergonomie tactile qui changeront ce qu'on veut du trainer.
+
+---
+
+## Cadre
+
+Application pour **un seul utilisateur**, installée sur son téléphone Android. Pas de compte, pas de synchronisation, pas de second utilisateur à ménager. Cette contrainte est une liberté : l'application peut être plus exigeante et plus honnête sur ce qu'elle ne sait pas qu'un produit destiné à un marché.
+
+PWA hors ligne par défaut, installée via « Ajouter à l'écran d'accueil » sur Chrome Android. Vite + TypeScript, Vitest, pnpm ; Svelte si la réactivité de l'UI le justifie. Ni natif Kotlin ni Capacitor — les deux exigeraient la toolchain Android pour produire un APK, et rien dans ces deux fonctions ne le réclame.
+
+**Ordre de livraison :** la pendule d'abord. Elle est autonome, ne contient aucune logique échiquéenne, et est utilisable dès sa première version.
+
+---
+
+## Pendule — exigences
+
+### Cadences
+
+R1. Deux modes de cadence, et deux seulement : **Fischer** (temps initial + incrément fixe ajouté à chaque coup joué) et **Bronstein** (le décompte part immédiatement, puis restitue le temps réellement consommé, plafonné au délai).
+
+R2. Un incrément de zéro est un réglage valide et couvre la mort subite. Il n'existe pas de mode « sudden death » distinct.
+
+R3. Les deux modes partagent une formule unique. Le gain rendu en fin de coup est `increment` en Fischer, et `min(increment, elapsed)` en Bronstein. Aucun mode ne doit être implémenté comme un cas particulier greffé sur l'autre.
+
+R4. Le temps initial est stocké **par joueur**, pas globalement, même si aucune interface ne permet de les régler séparément en v1. Un handicap se réduit alors à exposer un champ, jamais à migrer un schéma.
+
+### Disposition et interaction
+
+R5. Le téléphone est **posé à plat** entre les deux joueurs. L'écran est coupé en deux moitiés horizontales ; la moitié de l'adversaire est **pivotée à 180°**.
+
+R6. Chaque moitié est **entièrement** une zone de tap. Aucun contrôle secondaire n'y est placé : à plat, on tape sans regarder, et la cible doit être la surface maximale.
+
+R7. **Pendant la partie, chaque joueur tape sa propre moitié** après avoir joué, ce qui lance le temps de l'adversaire.
+
+R8. **Le démarrage est l'exception :** les Noirs lancent la pendule en tapant la moitié située du côté de leur adversaire, comme sur une pendule physique. L'orientation des deux camps se déduit de ce premier tap — aucun écran ne demande qui est Blanc.
+
+R9. Un tap sur la moitié du joueur qui n'est pas au trait n'a **aucun effet**. Seul le joueur dont le temps s'écoule peut rendre la main.
+
+R10. Une **bande centrale étroite**, hors des deux zones de tap, porte la pause.
+
+R11. Le reset n'est accessible que **depuis l'écran de pause**. Il n'est jamais atteignable en un seul geste.
+
+### Retours
+
+R12. Au moment du tap, la confirmation prioritaire va **au joueur qui vient de jouer**, et elle est **visuelle** sur sa propre moitié — son cadran se fige de façon perceptible en vision périphérique. Il n'y a qu'un vibreur dans le téléphone et les deux joueurs le sentent : l'haptique ne peut pas être adressée à un seul camp.
+
+  Ce qui est traité ici est le **faux négatif** — le tap qui n'a pas pris, alors que la main est déjà repartie vers les pièces. Tout le prior art traite le faux positif (le tap accidentel) et laisse celui-ci de côté.
+
+R13. Des signatures **sonores distinctes** marquent les transitions d'état : entrée dans les dix dernières secondes, et chute du drapeau.
+
+R14. L'audio est **pré-armé au premier geste utilisateur** (le tap de démarrage suffit — l'API l'exige).
+
+R15. Un interrupteur de **mode silencieux** coupe tous les sons. Un bip dans une salle de club est antisocial.
+
+R16. La spécification **n'exige pas** que le signal sonore parte quand l'application n'est pas au premier plan. Chrome gèle une page cachée après quelques minutes et la Web Audio ne peut pas y démarrer un son. C'est une limite acceptée, pas un défaut à corriger.
+
+### Chute du drapeau
+
+R17. À l'épuisement du temps, la pendule **arrête le décompte et marque sans ambiguïté la moitié concernée**.
+
+R18. Elle **n'écrit aucun résultat de partie**. Pas de vainqueur affiché.
+
+  Raison : FIDE, Laws of Chess art. 6.9 — la partie est nulle si l'adversaire ne peut mater par aucune suite de coups légaux, drapeau tombé ou non. La pendule ne voit pas l'échiquier et ne peut donc pas savoir. En blitz, l'Appendice B va plus loin : la chute compte quand elle est **réclamée** par un joueur, pas quand un appareil la constate.
+
+### Modèle interne
+
+R19. L'état d'une partie est un **journal d'événements horodatés, append-only** : démarrage, tap, pause, reprise. Rien d'autre n'est stocké comme source de vérité.
+
+R20. Tout ce qui s'affiche — temps restants, joueur au trait, drapeau tombé — est **dérivé du journal par une fonction pure**. Aucun état dérivé n'est écrit quelque part en parallèle.
+
+R21. Aucun `setInterval` ne fait avancer le temps. Un timer ne sert qu'à **redessiner**.
+
+  Raison : Chrome throttle les timers d'arrière-plan à environ une fois par minute après cinq minutes. Un compteur qui décrémente dérive — et sur une pendule, cette dérive ne produit pas un affichage légèrement faux, elle fait tomber un drapeau à tort. Un fold sur journal est idempotent : le rejouer après vingt minutes d'arrière-plan donne le même résultat qu'en direct, ce qui supprime le besoin d'un chemin de rattrapage séparé.
+
+R22. La **source de temps est injectée** (une interface `Clock` passée en paramètre) et jamais lue en dur.
+
+R23. Toute durée manipulée est un **entier**. Une durée fractionnaire accumulée corrompt l'horloge à la longue.
+
+R24. Un **undo du dernier tap** est disponible : retirer le dernier événement du journal et rejouer restitue le temps exact.
+
+  C'est la vraie réponse au tap accidentel, et elle ne coûte aucun tempo — contrairement au double-tap obligatoire employé ailleurs, qui taxe chaque coup en blitz et aggrave le faux négatif de R12.
+
+### Persistance et reprise
+
+R25. Le journal de la partie en cours est **persisté au fil de la partie**, pas seulement à la fin.
+
+R26. À l'ouverture, si le journal de la dernière partie n'est pas clos, l'application **propose de la reprendre**. La reprise restitue l'état exact, y compris le temps écoulé pendant l'absence.
+
+R27. La logique de lecture d'une sauvegarde est **pure et séparée** de l'accès au stockage, et hydrate défensivement : sauvegarde absente, tronquée, ou issue d'une version antérieure du schéma.
+
+R28. Le journal d'une partie est **exportable**. Un journal exporté se rejoue tel quel comme cas de test.
+
+  Un bug de pendule survient au club, loin du poste de développement, et n'est jamais reproductible de mémoire. C'est le seul moyen d'en faire une régression vérifiable.
+
+### Presets
+
+R29. Un petit jeu de cadences est fourni dans un **fichier JSON versionné**, éditable à la main. Pas d'éditeur visuel en v1.
+
+R30. La dernière cadence utilisée est mémorisée et proposée par défaut au lancement suivant.
+
+---
+
+## Hors périmètre
+
+**Définitivement écartés**, pas reportés :
+
+- **Multi-période** (type 40 coups en 90 min puis 30 min). Ce n'est pas un besoin réel. Cette exclusion emporte aussi la machine à états de périodes et le **compteur de coups**, dont la seule raison d'être était de déclencher les transitions.
+- **Délai américain.** Il produit exactement le même temps restant que Bronstein à chaque fin de coup et ne diffère que par l'affichage pendant le coup. Deux implémentations pour un résultat identique, c'est de la surface de bug pour rien.
+- **Byo-yomi.**
+
+**Reporté sans date :** interface de réglage des temps asymétriques (la structure de données est prête, cf. R4), éditeur visuel de cadences, tout ce qui touche au répertoire.
+
+---
+
+## Répertoire d'ouvertures — orientations
+
+Rien ici n'est une exigence implémentable. Ce sont les décisions déjà solides, à ne pas re-débattre, et les questions qui restent ouvertes.
+
+### Décisions acquises
+
+D1. **La clé d'une position est un EPD, pas un FEN** : les quatre premiers champs seulement — placement des pièces, trait, droits de roque, case en passant.
+
+  C'est le point qui décide si l'idée fonctionne. Le FEN complet contient le compteur de demi-coups et le numéro de coup, qui **diffèrent entre deux transpositions vers la même position**. L'utiliser comme clé fait échouer la convergence en silence et reconstruit exactement l'arbre de lignes qu'on cherchait à éviter.
+
+D2. La structure est un **graphe orienté acyclique**, pas un arbre : les coups sont des arêtes entre positions, et les transpositions convergent naturellement.
+
+D3. Quand deux lignes atteignent la même position et y prescrivent des coups différents, l'application **remonte le conflit** avec les deux chemins d'arrivée. Elle ne tranche pas silencieusement. C'est le seul moment où l'outil peut détecter que le répertoire se contredit lui-même.
+
+D4. **Le répertoire est la seule donnée irremplaçable du projet.** Il représente des mois de soirées et ne se reconstitue pas. Trois mesures, dès le premier jour où il existe : demander `navigator.storage.persist()`, offrir un export/import complet, et coupler explicitement version d'application et version de schéma. Une éviction de stockage par le navigateur, ou un service worker périmé rencontrant une migration, produit une perte silencieuse.
+
+D5. Deux directions d'entraînement valent mieux que la répétition espacée classique, et sont ce qui distingue cet outil d'un Chessable : **exiger une raison écrite** pour tout coup ajouté au répertoire, et **entraîner la détection de la sortie de livre** plutôt que la récitation — l'application joue une partie et dévie à un moment imprévisible, c'est au joueur de remarquer qu'il n'est plus en terrain connu. Ces deux directions ne sont possibles que parce qu'il n'y a qu'un utilisateur : un champ obligatoire rédigé à la main détruirait la conversion d'un produit de masse.
+
+### Questions ouvertes
+
+| # | Question | Pourquoi elle bloque |
+|---|---|---|
+| Q1 | D'où viennent les lignes en v1 — import PGN, study Lichess, saisie sur échiquier, amorçage depuis ses propres parties ? | Détermine s'il faut un échiquier interactif dès la v1, et quelle est la première brique à construire. |
+| Q2 | La clé est-elle l'EPD seul, ou le couple `(EPD, couleur du répertoire)` ? | Une même position peut appartenir au répertoire blanc et au noir avec des intentions différentes. À trancher avant la première table. |
+| Q3 | Quels modes d'entraînement en v1, et faut-il de la répétition espacée d'emblée ? | La répétition espacée est peut-être prématurée avant que le répertoire ait une taille réelle. |
+| Q4 | Que fait hors ligne tout ce qui dépend de l'API Lichess Opening Explorer ? | Les dumps pèsent 2,9 Go (masters) à 22 Go : inembarquables. Soit ces fonctions exigent le réseau et dégradent proprement, soit on embarque un jeu ECO curé. **Bloquant pour D5** : dévier du répertoire suppose une source de coups adverses. |
+| Q5 | Quelle bibliothèque d'échiquier ? | `cm-chessboard` est activement maintenu et sans dépendance ; `chessground` est passé en maintenance communautaire. À ne trancher qu'une fois Q1 répondue. |
+
+L'amorçage du répertoire depuis l'historique de ses propres parties a été examiné et **écarté comme source de vérité** : un répertoire dérivé de ses parties enregistre ce qu'on **a** joué, mauvaises habitudes comprises, alors qu'un répertoire est ce qu'on **devrait** jouer. Le garde-fou envisagé ne se déclenche jamais sur une erreur jouée systématiquement. La piste reste valable comme **amorçage** contre le démarrage à froid — c'est l'objet de Q1.
+
+---
+
+## Hypothèses
+
+H1. **Contexte de jeu supposé amical ou de club, pas de tournoi homologué.** Déduit du rejet du multi-période, pas d'une réponse directe. Si du tournoi homologué entre dans le tableau, R1 et l'exclusion du multi-période sont à reprendre.
+
+H2. `navigator.storage.persist()` est une **demande**, pas une garantie. Le navigateur peut refuser, et l'accorde plus volontiers à une PWA installée qu'à un onglet ordinaire.
+
+H3. Un export manuel qu'on oublie de faire ne protège de rien. Rendre l'export routinier est un problème d'usage, pas de code, et n'est pas résolu par cette spec.
+
+---
+
+## Vérifier
+
+Le partage est délibéré, et il découle de ce qui est réellement vérifiable.
+
+**Testé pour de vrai, en Vitest, avec une horloge injectée.** Toute la logique de temps. C'est le seul domaine purement déterministe du projet, et celui qu'on ne peut pas vérifier à la main : personne ne reproduit un throttling de trente minutes, un tap trois millisecondes avant l'échéance, ou une reprise depuis un journal tronqué. Les scénarios à couvrir : Fischer et Bronstein sur une partie complète, incrément nul, undo puis rejeu, mise en arrière-plan longue, reprise après fermeture de l'application, journal corrompu.
+
+**Vérifié à la main sur le téléphone.** Toute l'ergonomie. Un audit mobile nomme les éléments cassés — il ne rend pas un booléen, et `scrollWidth <= innerWidth` ne prouve rien puisque `overflow-x: hidden` le masque. À contrôler explicitement : les deux moitiés sont atteignables et pivotées correctement, la bande centrale ne vole aucun tap, la confirmation visuelle de R12 est perceptible sans fixer l'écran, le reset demande bien deux gestes.
+
+**Les deux chemins**, chaque fois qu'ils existent : partie jouée en direct **et** reprise après interruption.
+
+Un vrai rechargement se prouve en redémarrant le serveur de développement, pas avec un `location.reload()` piloté à distance.
+
+---
+
+## Découpage
+
+**v1 — pendule utilisable en club.** R1 à R30. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
+
+**v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : interface des temps asymétriques, éditeur de cadences, export du journal si R28 n'a pas été fait en v1.
+
+**v3 — répertoire.** Ouvre par la réponse à Q1 et Q2, qui décident de tout le reste.

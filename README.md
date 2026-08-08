@@ -14,7 +14,9 @@ Les deux fonctions existent ailleurs, séparément et mal ensemble. Les pendules
 
 Téléphone posé **à plat sur la table**, entre les deux joueurs. L'écran est coupé en deux moitiés, celle de l'adversaire pivotée à 180°. Les Noirs démarrent en tapant la moitié située du côté de leur adversaire, comme sur une vraie pendule.
 
-Cadences : temps initial + incrément Fischer, délai Bronstein, délai américain, et multi-période (40 coups en 90 min, puis 30 min, +30 s dès le premier coup). Pas de byo-yomi.
+Deux modes de cadence, et deux seulement : **Fischer** (temps initial + incrément, incrément nul compris — donc 5+0, 3+2, 5+3, 15+10) et **Bronstein**. Pas de multi-période, pas de délai américain, pas de byo-yomi : voir [`SPECS.md`](./SPECS.md) pour ce qui a été écarté et pourquoi.
+
+À la chute du drapeau, la pendule **constate sans arbitrer** — elle marque le camp concerné et n'écrit aucun résultat. Une pendule ne voit pas l'échiquier, donc elle ne peut pas savoir si le mat était encore possible.
 
 C'est le premier livrable : autonome, aucune logique échiquéenne, utilisable dès la première version.
 
