@@ -13,15 +13,18 @@ import {
 } from './persistence/store'
 import { DEFAULT_PRESET, PRESETS, presetById } from './presets/presets'
 import { queryElements, render } from './ui/render'
+import { createWebAudioCues, cueForTransition } from './audio/cues'
+import type { AudioSink } from './audio/cues'
 import type { OverlayMode } from './ui/render'
 import type { Clock } from './domain/clock'
 import type { KeyValueStore } from './persistence/store'
-import type { Half, Journal } from './domain/types'
+import type { Half, Journal, View } from './domain/types'
 
 export type AppDeps = {
   readonly clock: Clock
   readonly store: KeyValueStore
   readonly root?: ParentNode
+  readonly audio?: AudioSink
 }
 
 export type App = {
@@ -35,7 +38,12 @@ export type App = {
  * l'application) : c'est ce qui rend le câblage testable sans simuler ni le
  * temps ni le stockage du navigateur.
  */
-export function createApp({ clock, store, root = document }: AppDeps): App {
+export function createApp({
+  clock,
+  store,
+  root = document,
+  audio = createWebAudioCues(),
+}: AppDeps): App {
   const el = queryElements(root)
 
   let journal: Journal = newJournal(presetById(loadLastPresetId(store)))
@@ -83,6 +91,9 @@ export function createApp({ clock, store, root = document }: AppDeps): App {
 
   const onHalfPressed = (half: Half): void => {
     if (overlay !== 'none') return
+    // R14 : l'audio est pré-armé au premier geste utilisateur — le tap de
+    // démarrage suffit, et l'API l'exige.
+    audio.arm()
     const now = clock.now()
 
     if (fold(journal, now).phase === 'idle') {
@@ -179,12 +190,22 @@ export function createApp({ clock, store, root = document }: AppDeps): App {
   // Un timer ne sert qu'à redessiner : il ne détient aucun état de temps et ne
   // fait avancer aucun compteur. Le supprimer figerait l'affichage sans fausser
   // d'un millimètre l'état de la pendule.
+  let previousView: View | null = null
+
   const draw = (): void => {
     const now = clock.now()
+    const view = fold(journal, now)
+
+    // R13 : les signaux naissent d'une transition entre deux vues, jamais d'une
+    // horloge. R15 : le mode silencieux les coupe tous, sans toucher au visuel.
+    const cue = cueForTransition(previousView, view)
+    if (cue !== null && !silent) audio.play(cue)
+    previousView = view
+
     render(
       el,
       {
-        view: fold(journal, now),
+        view,
         overlay,
         silent,
         canUndo: canUndo(),

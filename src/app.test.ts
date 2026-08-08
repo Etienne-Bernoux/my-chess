@@ -5,6 +5,7 @@ import { createApp } from './app'
 import { TestClock } from './domain/clock'
 import { loadJournal, memoryStore } from './persistence/store'
 import type { App } from './app'
+import type { AudioSink, Cue } from './audio/cues'
 import type { KeyValueStore } from './persistence/store'
 import type { ClockEvent, Journal } from './domain/types'
 
@@ -17,13 +18,31 @@ import type { ClockEvent, Journal } from './domain/types'
 const BODY = HTML.slice(HTML.indexOf('<body>') + '<body>'.length, HTML.indexOf('</body>'))
 const START_AT = 1_000
 
+/** Sink enregistreur : ce qui est audible n'est pas testable, le câblage l'est. */
+type RecordingSink = AudioSink & { readonly played: Cue[]; armCount: number }
+
+const recordingSink = (): RecordingSink => {
+  const sink: RecordingSink = {
+    played: [],
+    armCount: 0,
+    arm: () => {
+      sink.armCount += 1
+    },
+    play: (cue) => {
+      sink.played.push(cue)
+    },
+  }
+  return sink
+}
+
 let clock: TestClock
 let store: KeyValueStore
+let audio: RecordingSink
 let app: App
 
 const mount = (): App => {
   document.body.innerHTML = BODY
-  return createApp({ clock, store, root: document })
+  return createApp({ clock, store, audio, root: document })
 }
 
 const press = (id: string): void => {
@@ -56,6 +75,7 @@ const hidden = (selector: string): boolean =>
 beforeEach(() => {
   clock = new TestClock(START_AT)
   store = memoryStore()
+  audio = recordingSink()
   app = mount()
 })
 
@@ -203,6 +223,66 @@ describe('écran de pause (R11, R15)', () => {
 
     press('half-bottom')
     expect(types(journal().events)).toEqual(['start', 'pause'])
+  })
+})
+
+describe('retours sonores (R13, R14, R15)', () => {
+  /** Cadence courte pour atteindre le seuil des dix secondes rapidement. */
+  const shortGame = (): void => {
+    click('menu-button')
+    const select = document.querySelector<HTMLSelectElement>('#preset-select')!
+    select.value = 'bullet-1-0-fischer' // 1 min, incrément nul
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    click('close-button')
+  }
+
+  it('R14 : l’audio est armé au premier geste, et l’armement est idempotent', () => {
+    expect(audio.armCount).toBe(0)
+    press('half-bottom')
+    expect(audio.armCount).toBe(1)
+
+    clock.set(6_000)
+    press('half-bottom')
+    expect(audio.armCount).toBe(2) // ré-armer est sans effet côté Web Audio
+    expect(audio.played).toEqual([])
+  })
+
+  it('le seuil des dix secondes puis la chute produisent deux signaux distincts', () => {
+    shortGame()
+    press('half-bottom')
+
+    clock.set(START_AT + 50_000) // 10 s restantes : pas encore franchi
+    app.draw()
+    expect(audio.played).toEqual([])
+
+    clock.set(START_AT + 50_001)
+    app.draw()
+    expect(audio.played).toEqual(['urgent'])
+
+    clock.set(START_AT + 60_000)
+    app.draw()
+    expect(audio.played).toEqual(['urgent', 'flag'])
+
+    // Une fois le drapeau tombé, plus rien n'est émis frame après frame.
+    clock.set(START_AT + 120_000)
+    app.draw()
+    app.draw()
+    expect(audio.played).toEqual(['urgent', 'flag'])
+  })
+
+  it('R15 : le mode silencieux coupe tous les sons sans toucher au visuel', () => {
+    click('menu-button')
+    const toggle = document.querySelector<HTMLInputElement>('#silent-toggle')!
+    toggle.checked = true
+    toggle.dispatchEvent(new Event('change', { bubbles: true }))
+    shortGame()
+
+    press('half-bottom')
+    clock.set(START_AT + 60_000)
+    app.draw()
+
+    expect(audio.played).toEqual([])
+    expect(document.querySelector('#half-bottom')!.classList.contains('is-flagged')).toBe(true)
   })
 })
 
