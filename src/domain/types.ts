@@ -14,6 +14,19 @@ export type IncrementMode = 'fischer' | 'bronstein'
  */
 export const URGENT_BELOW_MS = 10_000
 
+/**
+ * Durée minimale réellement consommée pour qu'un tap compte comme la fin d'un
+ * coup. Le téléphone est posé à plat : une paume qui roule d'une moitié à
+ * l'autre produit deux `pointerdown` valides à quelques dizaines de
+ * millisecondes d'écart, et le second offrirait à l'adversaire l'incrément d'un
+ * coup qu'il n'a pas joué.
+ *
+ * Ce n'est pas la taxe du double-tap que R24 écarte : elle coûte un tempo à
+ * *chaque* coup, alors qu'aucun coup humain — pièce déplacée puis pendule
+ * frappée — ne tient sous ce seuil, même en bullet. Valeur à confirmer au doigt.
+ */
+export const TAP_GUARD_MS = 120
+
 export const otherHalf = (half: Half): Half => (half === 'top' ? 'bottom' : 'top')
 
 /**

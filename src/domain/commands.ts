@@ -1,5 +1,5 @@
 import { fold } from './fold'
-import { JOURNAL_VERSION } from './types'
+import { JOURNAL_VERSION, TAP_GUARD_MS } from './types'
 import type { ClockEvent, Half, Journal, TimeControl } from './types'
 
 /**
@@ -46,9 +46,19 @@ export function start(journal: Journal, at: number, tappedHalf: Half): Journal |
   return append(journal, { type: 'start', at, whiteHalf: tappedHalf })
 }
 
-/** R7 et R9 : seul le joueur dont le temps s'écoule peut rendre la main. */
+/**
+ * R7 et R9 : seul le joueur dont le temps s'écoule peut rendre la main.
+ *
+ * Le garde de `TAP_GUARD_MS` écarte en plus le contact parasite — deux
+ * `pointerdown` produits par une seule paume qui traverse l'écran. Il porte sur
+ * le temps *réellement consommé* sur le coup, pas sur le délai depuis le tap
+ * précédent : une reprise après pause n'est donc jamais bloquée, alors qu'elle
+ * le serait avec un simple anti-rebond horloge.
+ */
 export function tap(journal: Journal, at: number, half: Half): Journal | null {
-  if (fold(journal, at).running !== half) return null
+  const view = fold(journal, at)
+  if (view.running !== half) return null
+  if (view.elapsedThisMove < TAP_GUARD_MS) return null
   return append(journal, { type: 'tap', at, half })
 }
 

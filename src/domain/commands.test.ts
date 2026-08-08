@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { newJournal, pause, resume, start, tap, undo } from './commands'
 import { fold } from './fold'
+import { TAP_GUARD_MS } from './types'
 import type { Half, Journal, TimeControl } from './types'
 
 const START_AT = 1000
@@ -84,6 +85,41 @@ describe('tap (R7, R9)', () => {
   it('un tap pendant la pause est refusé', () => {
     const paused = pause(started(), START_AT + 1_000)!
     expect(tap(paused, START_AT + 2_000, WHITE)).toBeNull()
+  })
+})
+
+describe('garde multi-touch', () => {
+  it('une paume qui roule d’une moitié à l’autre ne donne pas d’incrément gratuit', () => {
+    const j = started()
+    const premier = tap(j, START_AT + 5_000, WHITE)!
+
+    // Le second contact, 30 ms plus tard, frappe la moitié devenue active.
+    // Sans garde il serait valide et créditerait l'adversaire d'un incrément
+    // pour un coup qu'il n'a pas joué.
+    expect(tap(premier, START_AT + 5_030, BLACK)).toBeNull()
+
+    // Les Noirs sont bien au trait et consomment leurs 30 ms — ce qu'ils
+    // n'encaissent pas, c'est l'incrément d'un coup qu'ils n'ont pas joué
+    // (sans garde on lirait 182 000 − 30).
+    expect(fold(premier, START_AT + 5_030).remaining[BLACK]).toBe(180_000 - 30)
+  })
+
+  it('un coup humain, même rapide, passe', () => {
+    const j = tap(started(), START_AT + 5_000, WHITE)!
+    expect(tap(j, START_AT + 5_000 + TAP_GUARD_MS, BLACK)).not.toBeNull()
+  })
+
+  it('le garde s’applique aussi juste après le démarrage', () => {
+    expect(tap(started(), START_AT + 30, WHITE)).toBeNull()
+    expect(tap(started(), START_AT + TAP_GUARD_MS, WHITE)).not.toBeNull()
+  })
+
+  it('il porte sur le temps consommé, donc une reprise après pause n’est pas bloquée', () => {
+    // Le joueur a réfléchi 5 s, mis en pause, repris — et joue aussitôt.
+    const reflechi = pause(tap(started(), START_AT + 5_000, WHITE)!, START_AT + 10_000)!
+    const repris = resume(reflechi, START_AT + 300_000)!
+
+    expect(tap(repris, START_AT + 300_010, BLACK)).not.toBeNull()
   })
 })
 
@@ -172,9 +208,9 @@ describe('undo (R24)', () => {
 
 describe('horodatages non décroissants (R19, R23)', () => {
   it('un horodatage antérieur au précédent est plafonné, jamais écrit tel quel', () => {
-    const j = started()
-    // L'horloge murale a reculé entre le démarrage et le tap.
-    const recule = tap(j, START_AT - 5_000, WHITE)!
+    // L'horloge murale a reculé entre le démarrage et l'événement suivant.
+    // (Un tap, lui, serait de toute façon écarté par le garde multi-touch.)
+    const recule = pause(started(), START_AT - 5_000)!
     expect(recule.events[1]!.at).toBe(START_AT)
   })
 

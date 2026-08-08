@@ -46,6 +46,10 @@ R8. **Le démarrage est l'exception :** les Noirs lancent la pendule en tapant l
 
 R9. Un tap sur la moitié du joueur qui n'est pas au trait n'a **aucun effet**. Seul le joueur dont le temps s'écoule peut rendre la main.
 
+R9b. Un tap est également sans effet si le joueur au trait n'a **pas encore consommé un minimum de temps** sur son coup. Le téléphone est posé à plat : une paume qui roule d'une moitié à l'autre produit deux contacts valides, et le second offrirait à l'adversaire l'incrément d'un coup qu'il n'a pas joué.
+
+  Ce n'est pas le double-tap obligatoire écarté en R24 — celui-ci taxe *chaque* coup, alors qu'aucun coup humain, pièce déplacée puis pendule frappée, ne tient sous ce seuil. Le garde porte sur le temps **réellement consommé** et non sur le délai écoulé, pour qu'une reprise après pause ne soit jamais bloquée.
+
 R10. Une **bande centrale étroite**, hors des deux zones de tap, porte la pause.
 
 R11. Le reset n'est accessible que **depuis l'écran de pause**. Il n'est jamais atteignable en un seul geste.
