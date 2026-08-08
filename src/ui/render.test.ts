@@ -31,6 +31,7 @@ const model = (journal: Journal, now: number, over: Partial<UiModel> = {}): UiMo
   canExport: false,
   presets: PRESETS,
   selectedPresetId: PRESETS[0]!.id,
+  resetArmed: false,
   note: '',
   ...over,
 })
@@ -146,21 +147,55 @@ describe('render — écran de pause (R11)', () => {
     expect(el.resetButton.hidden).toBe(false)
   })
 
-  it('la cadence n’est modifiable qu’en dehors d’une partie en cours (R29)', () => {
+  it('la cadence reste choisissable partout où une nouvelle partie est proposée (R29)', () => {
     const journal = start(newJournal(tc()), START_AT, WHITE)!
-    render(el, model(journal, START_AT, { overlay: 'pause' }), START_AT)
-    expect(el.presetSelect.disabled).toBe(true)
-
-    render(el, model(newJournal(tc()), START_AT, { overlay: 'settings' }), START_AT)
-    expect(el.presetSelect.disabled).toBe(false)
+    // Un select grisé à côté d'un bouton « Nouvelle partie » rendrait le bouton
+    // menteur : il proposerait une partie dont on ne peut pas régler la cadence.
+    for (const overlay of ['home', 'pause', 'over'] as const) {
+      render(el, model(journal, START_AT, { overlay }), START_AT)
+      expect(el.presetSelect.disabled).toBe(false)
+      expect(el.resetButton.hidden).toBe(false)
+    }
     expect(el.presetSelect.options.length).toBe(PRESETS.length)
+  })
+
+  it('l’accueil ne propose la reprise que si une partie est en cours', () => {
+    render(el, model(newJournal(tc()), START_AT, { overlay: 'home' }), START_AT)
+    expect(el.resumeButton.hidden).toBe(true)
+    expect(el.resetButton.textContent).toBe('Commencer')
+    expect(el.overlayTitle.textContent).toBe('myChess')
+
+    const journal = start(newJournal(tc()), START_AT, WHITE)!
+    render(el, model(journal, START_AT, { overlay: 'home' }), START_AT)
+    expect(el.resumeButton.hidden).toBe(false)
+    expect(el.resetButton.textContent).toBe('Nouvelle partie')
+    expect(el.overlayTitle.textContent).toMatch(/en cours/i)
+  })
+
+  it('R11 : le reset armé s’annonce par son libellé et son remplissage', () => {
+    const journal = start(newJournal(tc()), START_AT, WHITE)!
+    render(el, model(journal, START_AT, { overlay: 'home', resetArmed: true }), START_AT)
+    expect(el.resetButton.textContent).toMatch(/abandon/i)
+    expect(el.resetButton.classList.contains('is-armed')).toBe(true)
+
+    render(el, model(journal, START_AT, { overlay: 'home' }), START_AT)
+    expect(el.resetButton.textContent).toBe('Nouvelle partie')
+    expect(el.resetButton.classList.contains('is-armed')).toBe(false)
+  })
+
+  it('un drapeau tombé n’est jamais reprenable (R17)', () => {
+    const journal = start(newJournal(tc({ initialMs: { white: 5_000, black: 5_000 } })), START_AT, WHITE)!
+    const at = START_AT + 6_000
+    render(el, model(journal, at, { overlay: 'over' }), at)
+    expect(el.resumeButton.hidden).toBe(true)
+    expect(el.resetButton.textContent).toBe('Commencer')
   })
 
   it('R15 : l’interrupteur silencieux reflète le modèle', () => {
     const j = newJournal(tc())
-    render(el, model(j, START_AT, { overlay: 'settings', silent: true }), START_AT)
+    render(el, model(j, START_AT, { overlay: 'home', silent: true }), START_AT)
     expect(el.silentToggle.checked).toBe(true)
-    render(el, model(j, START_AT, { overlay: 'settings', silent: false }), START_AT)
+    render(el, model(j, START_AT, { overlay: 'home', silent: false }), START_AT)
     expect(el.silentToggle.checked).toBe(false)
   })
 })

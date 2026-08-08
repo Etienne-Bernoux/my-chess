@@ -48,6 +48,10 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.reload()
+  // L'accueil s'ouvre à chaque lancement : « Commencer » le referme sur une
+  // pendule à l'arrêt — c'est le tap des Noirs, ensuite, qui la lance (R8).
+  await page.locator('#reset-button').click()
+  await expect(page.locator('#overlay')).toBeHidden()
   await expect(clock(page, 'bottom')).toHaveText('3:00')
 })
 

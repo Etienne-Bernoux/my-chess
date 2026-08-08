@@ -5,6 +5,7 @@ import { createApp } from './app'
 import { TestClock } from './domain/clock'
 import { parseJournal } from './persistence/codec'
 import { loadJournal, memoryStore } from './persistence/store'
+import { RESET_ARM_MS } from './ui/render'
 import type { App } from './app'
 import type { AudioSink, Cue } from './audio/cues'
 import type { KeyValueStore } from './persistence/store'
@@ -46,6 +47,16 @@ const mount = (): App => {
   return createApp({ clock, store, audio, root: document })
 }
 
+/**
+ * L'application s'ouvre sur l'accueil : tant qu'il n'est pas fermé, aucun tap
+ * n'atteint les moitiés. Les tests qui portent sur la pendule elle-même passent
+ * donc par ici ; ceux qui portent sur l'accueil montent sans le fermer.
+ */
+const enterGame = (): void => {
+  document.querySelector<HTMLElement>('#reset-button')!.click()
+  app.draw()
+}
+
 const press = (id: string): void => {
   document.querySelector(`#${id}`)!.dispatchEvent(new Event('pointerdown', { bubbles: true }))
   // Piège connu : lire le DOM dans le même tour de boucle que l'action lit
@@ -78,6 +89,7 @@ beforeEach(() => {
   store = memoryStore()
   audio = recordingSink()
   app = mount()
+  enterGame()
 })
 
 afterEach(() => {
@@ -314,7 +326,7 @@ describe('retours sonores (R13, R14, R15)', () => {
     const select = document.querySelector<HTMLSelectElement>('#preset-select')!
     select.value = 'bullet-1-0-fischer' // 1 min, incrément nul
     select.dispatchEvent(new Event('change', { bubbles: true }))
-    click('close-button')
+    click('reset-button')
   }
 
   it('R14 : l’audio est armé au premier geste, et l’armement est idempotent', () => {
@@ -398,9 +410,11 @@ describe('reprise à l’ouverture (R26)', () => {
     clock.set(6_000 + 40 * 60_000) // bien au-delà des 3 min des Noirs
     app = mount()
 
-    // La partie est terminée : rien n'est proposé et la pendule repart à neuf,
-    // sur la dernière cadence utilisée.
-    expect(hidden('#overlay')).toBe(true)
+    // La partie est terminée : l'accueil ne propose pas de la reprendre et la
+    // pendule repart à neuf, sur la dernière cadence utilisée.
+    expect(hidden('#resume-button')).toBe(true)
+    expect(text('#overlay-title')).not.toMatch(/en cours/i)
+    enterGame()
     expect(text('#clock-top')).toBe('3:00')
     expect(text('#clock-bottom')).toBe('3:00')
     expect(document.querySelector('#half-top')!.classList.contains('is-flagged')).toBe(false)
@@ -411,10 +425,75 @@ describe('reprise à l’ouverture (R26)', () => {
     const select = document.querySelector<HTMLSelectElement>('#preset-select')!
     select.value = 'blitz-5-0-fischer'
     select.dispatchEvent(new Event('change', { bubbles: true }))
+    click('reset-button')
 
     app.dispose()
     app = mount()
+    enterGame()
     expect(text('#clock-bottom')).toBe('5:00')
+  })
+
+  it('R11 : abandonner une partie reprenable demande un second appui', () => {
+    press('half-bottom')
+    clock.set(6_000)
+    press('half-bottom')
+
+    app.dispose()
+    clock.set(6_000 + 60_000)
+    app = mount()
+
+    // Premier appui : le bouton s'arme, la partie est intacte.
+    click('reset-button')
+    expect(journal().events).toHaveLength(2)
+    expect(hidden('#overlay')).toBe(false)
+    expect(text('#reset-button')).toMatch(/abandon/i)
+
+    // Second appui : la partie est bel et bien jetée.
+    click('reset-button')
+    expect(hidden('#overlay')).toBe(true)
+    expect(loadJournal(store).ok).toBe(false)
+  })
+
+  it('R11 : le reset se désarme tout seul, sans minuteur à nettoyer', () => {
+    press('half-bottom')
+    app.dispose()
+    app = mount()
+
+    click('reset-button')
+    expect(text('#reset-button')).toMatch(/abandon/i)
+
+    // Passé la fenêtre, l'appui suivant ré-arme au lieu de détruire.
+    clock.set(clock.now() + RESET_ARM_MS)
+    click('reset-button')
+    expect(journal().events).toHaveLength(1)
+    expect(text('#reset-button')).toMatch(/abandon/i)
+  })
+
+  it('sans partie en cours, commencer ne demande qu’un seul appui', () => {
+    click('menu-button')
+    click('reset-button')
+    expect(hidden('#overlay')).toBe(true)
+  })
+
+  it('choisir une cadence ne détruit pas la partie qu’on propose de reprendre', () => {
+    press('half-bottom')
+    clock.set(6_000)
+    press('half-bottom')
+
+    app.dispose()
+    clock.set(6_000 + 60_000)
+    app = mount()
+
+    // La sélection n'est qu'un choix armé pour la partie suivante.
+    const select = document.querySelector<HTMLSelectElement>('#preset-select')!
+    select.value = 'blitz-5-0-fischer'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    app.draw()
+    expect(journal().events).toHaveLength(2)
+
+    click('resume-button')
+    expect(hidden('#overlay')).toBe(true)
+    expect(text('#clock-top')).toBe('2:00')
   })
 
   it('une sauvegarde corrompue n’est pas proposée et ne casse pas le démarrage', () => {
@@ -426,7 +505,7 @@ describe('reprise à l’ouverture (R26)', () => {
     expect(text('#overlay-note')).toMatch(/ignorée/i)
 
     // La pendule reste utilisable : fermer l'écran puis taper démarre une partie.
-    click('close-button')
+    enterGame()
     press('half-bottom')
     expect(types(journal().events)).toEqual(['start'])
   })

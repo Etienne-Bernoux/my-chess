@@ -9,7 +9,14 @@ import type { Half, TimeControl, View } from '../domain/types'
  */
 export const CONFIRM_FLASH_MS = 220
 
-export type OverlayMode = 'none' | 'settings' | 'pause' | 'resume' | 'over'
+/**
+ * `home` est l'écran d'accueil : il s'ouvre au lancement, propose la cadence et
+ * — quand une partie n'est pas close — sa reprise. C'est le même écran dans les
+ * deux cas ; seuls le texte et la présence du bouton de reprise changent, et ils
+ * se déduisent de la phase. Deux modes distincts obligeraient à les tenir en
+ * accord à la main.
+ */
+export type OverlayMode = 'none' | 'home' | 'pause' | 'over'
 
 export type UiModel = {
   readonly view: View
@@ -19,6 +26,8 @@ export type UiModel = {
   readonly canExport: boolean
   readonly presets: readonly TimeControl[]
   readonly selectedPresetId: string
+  /** R11 : le reset a été armé, le prochain appui abandonne réellement la partie. */
+  readonly resetArmed: boolean
   readonly note: string
 }
 
@@ -35,7 +44,6 @@ export type Elements = {
   readonly presetSelect: HTMLSelectElement
   readonly silentToggle: HTMLInputElement
   readonly resumeButton: HTMLButtonElement
-  readonly closeButton: HTMLButtonElement
   readonly exportButton: HTMLButtonElement
   readonly resetButton: HTMLButtonElement
 }
@@ -66,7 +74,6 @@ export function queryElements(root: ParentNode = document): Elements {
     presetSelect: required<HTMLSelectElement>(root, 'preset-select'),
     silentToggle: required<HTMLInputElement>(root, 'silent-toggle'),
     resumeButton: required<HTMLButtonElement>(root, 'resume-button'),
-    closeButton: required<HTMLButtonElement>(root, 'close-button'),
     exportButton: required<HTMLButtonElement>(root, 'export-button'),
     resetButton: required<HTMLButtonElement>(root, 'reset-button'),
   }
@@ -89,24 +96,42 @@ export function halfState(view: View, half: Half, now: number): readonly string[
   return view.remaining[half] < URGENT_BELOW_MS ? ['is-running', 'is-urgent'] : ['is-running']
 }
 
-const OVERLAY_TEXT: Record<Exclude<OverlayMode, 'none'>, { title: string; hint: string }> = {
-  settings: {
-    title: 'myChess',
-    hint: 'Les Noirs lancent la pendule en tapant la moitié située du côté de leur adversaire.',
-  },
-  pause: {
-    title: 'Pause',
-    hint: 'Le temps est arrêté des deux côtés.',
-  },
-  resume: {
-    title: 'Partie en cours',
-    hint: 'Une partie n’était pas terminée. La reprendre restitue l’état exact, temps écoulé pendant l’absence compris.',
-  },
-  over: {
-    // R18 : on explique pourquoi rien n'est attribué, sans rien attribuer.
+/**
+ * Une partie est reprenable tant qu'elle a commencé sans être close. C'est la
+ * seule chose qui distingue les deux visages de l'écran d'accueil, et elle se
+ * lit dans la vue — aucun drapeau parallèle à tenir à jour.
+ */
+export const canResume = (view: View): boolean =>
+  view.phase === 'running' || view.phase === 'paused'
+
+/**
+ * R11 : fenêtre pendant laquelle le reset reste armé. Assez longue pour lire le
+ * nouveau libellé et appuyer sans se presser, assez courte pour qu'un écran
+ * laissé ouvert ne garde pas un bouton destructeur amorcé.
+ */
+export const RESET_ARM_MS = 4_000
+
+const HOME_FRESH = {
+  title: 'myChess',
+  hint: 'Choisissez la cadence. Les Noirs lancent ensuite la pendule en tapant la moitié située du côté de leur adversaire.',
+}
+
+const HOME_RESUMABLE = {
+  title: 'Partie en cours',
+  hint: 'Une partie n’était pas terminée. La reprendre restitue l’état exact, temps écoulé pendant l’absence compris ; en commencer une nouvelle l’abandonne.',
+}
+
+const overlayText = (
+  overlay: Exclude<OverlayMode, 'none'>,
+  resumable: boolean,
+): { title: string; hint: string } => {
+  if (overlay === 'home') return resumable ? HOME_RESUMABLE : HOME_FRESH
+  if (overlay === 'pause') return { title: 'Pause', hint: 'Le temps est arrêté des deux côtés.' }
+  // R18 : on explique pourquoi rien n'est attribué, sans rien attribuer.
+  return {
     title: 'Drapeau tombé',
     hint: 'La pendule le constate et s’arrête là. Elle ne voit pas l’échiquier : selon l’article 6.9 des règles FIDE, la partie peut être nulle malgré la chute.',
-  },
+  }
 }
 
 function syncPresets(select: HTMLSelectElement, presets: readonly TimeControl[]): void {
@@ -151,14 +176,17 @@ export function render(el: Elements, model: UiModel, now: number): void {
   el.overlay.hidden = !open
   if (!open) return
 
-  const text = OVERLAY_TEXT[model.overlay]
+  const resumable = canResume(view)
+  const text = overlayText(model.overlay, resumable)
   el.overlayTitle.textContent = text.title
   el.overlayHint.textContent = text.hint
   el.overlayNote.textContent = model.note
 
-  const cadenceEditable = model.overlay === 'settings' || model.overlay === 'over'
+  // La cadence reste choisissable en toutes circonstances : la sélection n'est
+  // qu'un choix armé, c'est « Nouvelle partie » qui l'applique. Un select grisé
+  // rendait le bouton menteur — il proposait une nouvelle partie sans laisser en
+  // régler la cadence.
   el.presetField.hidden = false
-  el.presetSelect.disabled = !cadenceEditable
   syncPresets(el.presetSelect, model.presets)
   if (el.presetSelect.value !== model.selectedPresetId) {
     el.presetSelect.value = model.selectedPresetId
@@ -166,12 +194,19 @@ export function render(el: Elements, model: UiModel, now: number): void {
 
   el.silentToggle.checked = model.silent
 
-  el.resumeButton.hidden = model.overlay !== 'pause' && model.overlay !== 'resume'
-  el.resumeButton.textContent =
-    model.overlay === 'resume' ? 'Reprendre la partie' : 'Reprendre'
-  el.closeButton.hidden = model.overlay !== 'settings'
+  // Rien à reprendre sur un drapeau tombé (R17) ni sur une pendule jamais lancée.
+  el.resumeButton.hidden = !resumable
+  el.resumeButton.textContent = model.overlay === 'home' ? 'Reprendre la partie' : 'Reprendre'
   el.exportButton.hidden = !model.canExport
-  // R11 : le reset ne vit que sur cet écran, donc jamais atteignable en un geste.
-  el.resetButton.hidden = model.overlay === 'settings'
-  el.resetButton.textContent = 'Nouvelle partie'
+
+  // R11 : le reset ne vit que sur cet écran, et abandonner une partie non close y
+  // demande un second appui — l'accueil s'ouvrant seul au lancement, un unique
+  // geste suffirait sinon à jeter la partie en cours.
+  el.resetButton.hidden = false
+  el.resetButton.textContent = model.resetArmed
+    ? 'Confirmer l’abandon'
+    : resumable
+      ? 'Nouvelle partie'
+      : 'Commencer'
+  toggleClass(el.resetButton, 'is-armed', model.resetArmed)
 }
