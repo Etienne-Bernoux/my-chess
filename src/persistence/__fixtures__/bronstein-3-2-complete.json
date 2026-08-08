@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "timeControl": {
+    "id": "blitz-3-2-bronstein",
+    "label": "Blitz 3+2 Bronstein",
+    "mode": "bronstein",
+    "initialMs": { "white": 180000, "black": 180000 },
+    "incrementMs": 2000
+  },
+  "events": [
+    { "type": "start", "at": 1000, "whiteHalf": "bottom" },
+    { "type": "tap", "at": 6000, "half": "bottom" },
+    { "type": "tap", "at": 9000, "half": "top" },
+    { "type": "tap", "at": 19000, "half": "bottom" },
+    { "type": "tap", "at": 20000, "half": "top" },
+    { "type": "tap", "at": 20500, "half": "bottom" },
+    { "type": "tap", "at": 40500, "half": "top" },
+    { "type": "tap", "at": 42500, "half": "bottom" },
+    { "type": "tap", "at": 46500, "half": "top" },
+    { "type": "tap", "at": 53500, "half": "bottom" },
+    { "type": "tap", "at": 59500, "half": "top" }
+  ]
+}
