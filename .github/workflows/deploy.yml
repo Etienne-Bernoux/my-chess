@@ -45,6 +45,21 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # Géométrie et atteignabilité dans un vrai moteur de rendu. Ne couvre pas
+      # l'ergonomie — perceptibilité et timbres restent à valider au téléphone.
+      - name: Navigateur pour les e2e
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Tests e2e
+        run: pnpm test:e2e
+
+      - if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 7
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
