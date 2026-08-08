@@ -21,6 +21,10 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.reload()
+  // L'application s'ouvre sur l'accueil ; la géométrie des moitiés ne se mesure
+  // qu'une fois cet écran refermé.
+  await page.locator('#reset-button').click()
+  await expect(page.locator('#overlay')).toBeHidden()
   await expect(page.locator('#half-bottom')).toBeVisible()
 })
 
@@ -116,11 +120,12 @@ test('R11 : le reset demande deux gestes, il n’est pas atteignable d’emblée
   await expect(page.locator('#reset-button')).toBeVisible()
 })
 
-test('avant toute partie, l’écran de réglages n’offre pas de reset', async ({ page }) => {
-  // Rien à remettre à zéro : le bouton n'a pas lieu d'être, et son absence
-  // évite un geste destructeur sans objet.
+test('avant toute partie, l’accueil ne propose ni reprise ni geste destructeur', async ({ page }) => {
   await page.locator('#menu-button').click()
   await expect(page.locator('#overlay')).toBeVisible()
   await expect(page.locator('#preset-select')).toBeEnabled()
-  await expect(page.locator('#reset-button')).toBeHidden()
+  // Rien à reprendre, et rien à détruire : le bouton d'action ouvre une partie
+  // au lieu d'en remettre une à zéro.
+  await expect(page.locator('#resume-button')).toBeHidden()
+  await expect(page.locator('#reset-button')).toHaveText('Commencer')
 })

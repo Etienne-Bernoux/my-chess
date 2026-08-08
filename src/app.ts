@@ -11,8 +11,8 @@ import {
   saveLastPresetId,
   saveSilent,
 } from './persistence/store'
-import { DEFAULT_PRESET, PRESETS, presetById } from './presets/presets'
-import { queryElements, render } from './ui/render'
+import { PRESETS, presetById } from './presets/presets'
+import { RESET_ARM_MS, canResume, queryElements, render } from './ui/render'
 import { createWebAudioCues, cueForTransition } from './audio/cues'
 import { createWakeLock } from './platform/wakeLock'
 import type { AudioSink } from './audio/cues'
@@ -51,7 +51,9 @@ export function createApp({
   const el = queryElements(root)
 
   let journal: Journal = newJournal(presetById(loadLastPresetId(store)))
-  let overlay: OverlayMode = 'none'
+  // L'application s'ouvre toujours sur l'accueil : la cadence est vue et
+  // confirmée avant qu'une partie de club ne parte sur la mauvaise.
+  let overlay: OverlayMode = 'home'
   let silent = loadSilent(store)
   let note = ''
 
@@ -61,12 +63,24 @@ export function createApp({
   const saved = loadJournal(store)
   if (saved.ok && isResumable(saved.journal, clock.now())) {
     journal = saved.journal
-    overlay = 'resume'
   } else if (!saved.ok && saved.reason !== 'sauvegarde absente') {
     note = `Sauvegarde précédente ignorée — ${saved.reason}`
-    overlay = 'settings'
     clearJournal(store)
   }
+
+  // La cadence choisie dans la liste est distincte de celle de la partie
+  // affichée : sur l'accueil d'une partie reprenable, il faut pouvoir en armer
+  // une autre pour la partie suivante sans détruire celle qu'on propose de
+  // reprendre. C'est le bouton qui applique, jamais la sélection.
+  let selectedPresetId = presetById(journal.timeControl.id).id
+
+  // R11 : instant du premier appui sur le reset. Comme le flash de R12, l'état
+  // armé se dérive du temps écoulé plutôt que d'un `setTimeout` — un undo, une
+  // reprise ou une fermeture ne laissent donc aucun minuteur orphelin.
+  let resetArmedAt: number | null = null
+
+  const isResetArmed = (now: number): boolean =>
+    resetArmedAt !== null && now - resetArmedAt >= 0 && now - resetArmedAt < RESET_ARM_MS
 
   /** R25 : le journal est persisté au fil de la partie, après chaque événement. */
   const commit = (next: Journal | null): boolean => {
@@ -80,16 +94,14 @@ export function createApp({
   // bouton est grisé exactement quand l'undo serait refusé.
   const canUndo = (now: number): boolean => undo(journal, now) !== null
 
-  const selectedPresetId = (): string =>
-    PRESETS.some((p) => p.id === journal.timeControl.id)
-      ? journal.timeControl.id
-      : DEFAULT_PRESET.id
-
-  const startNewGame = (presetId: string): void => {
-    journal = newJournal(presetById(presetId))
+  // Ne lance jamais l'horloge : R8 veut que ce soit le premier tap des Noirs, sur
+  // la moitié adverse, qui décide de l'orientation des deux camps.
+  const startNewGame = (): void => {
+    journal = newJournal(presetById(selectedPresetId))
     clearJournal(store)
     saveLastPresetId(store, journal.timeControl.id)
     overlay = 'none'
+    resetArmedAt = null
     note = ''
   }
 
@@ -140,7 +152,7 @@ export function createApp({
     } else if (phase === 'flagged') {
       overlay = 'over'
     } else {
-      overlay = 'settings'
+      overlay = 'home'
     }
   })
 
@@ -151,20 +163,25 @@ export function createApp({
     // `resume` rend alors `null` et il n'y a qu'à refermer l'écran.
     commit(resume(journal, clock.now()))
     overlay = 'none'
+    resetArmedAt = null
     note = ''
   })
 
-  el.closeButton.addEventListener('click', () => {
-    overlay = 'none'
-    note = ''
+  el.resetButton.addEventListener('click', () => {
+    const now = clock.now()
+    // R11 : l'accueil est le seul écran qui s'ouvre de lui-même, donc le seul où
+    // un unique appui pourrait jeter une partie non close sans qu'on l'ait voulu.
+    // Ailleurs, avoir ouvert l'écran est déjà le premier geste.
+    const needsArming = overlay === 'home' && canResume(fold(journal, now))
+    if (!needsArming || isResetArmed(now)) {
+      startNewGame()
+      return
+    }
+    resetArmedAt = now
   })
-
-  el.resetButton.addEventListener('click', () => startNewGame(el.presetSelect.value))
 
   el.presetSelect.addEventListener('change', () => {
-    if (el.presetSelect.disabled) return
-    startNewGame(el.presetSelect.value)
-    overlay = 'settings'
+    selectedPresetId = presetById(el.presetSelect.value).id
   })
 
   el.silentToggle.addEventListener('change', () => {
@@ -221,7 +238,8 @@ export function createApp({
         canUndo: canUndo(now),
         canExport: journal.events.length > 0,
         presets: PRESETS,
-        selectedPresetId: selectedPresetId(),
+        selectedPresetId,
+        resetArmed: isResetArmed(now),
         note,
       },
       now,

@@ -279,6 +279,15 @@ body {
   color: #ff9aa3;
 }
 
+/* R11, second temps : le bouton armé se remplit pour que le geste qui abandonne
+   réellement la partie ne ressemble pas à celui qui l'a armé. */
+.action.is-armed {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #1a0508;
+  font-weight: 600;
+}
+
 /* Media queries en fin de feuille : à spécificité égale, la dernière règle
    gagne — les placer plus haut les ferait perdre. */
 
