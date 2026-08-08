@@ -136,31 +136,39 @@ D2. La structure est un **graphe orienté acyclique**, pas un arbre : les coups 
 
 D3. Quand deux lignes atteignent la même position et y prescrivent des coups différents, l'application **remonte le conflit** avec les deux chemins d'arrivée. Elle ne tranche pas silencieusement. C'est le seul moment où l'outil peut détecter que le répertoire se contredit lui-même.
 
-D4. **Le répertoire est la seule donnée irremplaçable du projet.** Il représente des mois de soirées et ne se reconstitue pas. Trois mesures, dès le premier jour où il existe : demander `navigator.storage.persist()`, offrir un export/import complet, et coupler explicitement version d'application et version de schéma. Une éviction de stockage par le navigateur, ou un service worker périmé rencontrant une migration, produit une perte silencieuse.
+D4. **Le répertoire est une donnée source versionnée dans le repo**, éditée à la main dans l'éditeur de code — pas saisie dans l'application. C'est une application personnelle avec un seul contributeur : l'IDE est une meilleure interface d'édition que tout ce qu'on construirait sur un écran de téléphone.
 
-D5. Deux directions d'entraînement valent mieux que la répétition espacée classique, et sont ce qui distingue cet outil d'un Chessable : **exiger une raison écrite** pour tout coup ajouté au répertoire, et **entraîner la détection de la sortie de livre** plutôt que la récitation — l'application joue une partie et dévie à un moment imprévisible, c'est au joueur de remarquer qu'il n'est plus en terrain connu. Ces deux directions ne sont possibles que parce qu'il n'y a qu'un utilisateur : un champ obligatoire rédigé à la main détruirait la conversion d'un produit de masse.
+  Trois conséquences qui simplifient franchement le projet :
+
+  - **Le dispositif de durabilité tombe.** Le répertoire est sauvegardé sur GitHub, versionné et diffable par construction. Plus rien d'irremplaçable ne vit dans le stockage du navigateur, à l'exception de la progression de révision — qui est reconstituable et ne justifie pas `navigator.storage.persist()` ni un export/import dédié.
+  - **La raison écrite obligatoire devient une contrainte de typage** plutôt qu'une interface qui force un champ : elle est requise dans le type du format source, et un coup sans justification ne compile pas.
+  - **Les conflits de transposition deviennent une erreur de build.** Deux lignes qui prescrivent des coups différents dans la même position se détectent au chargement ou dans un test — pas d'écran de résolution à construire.
+
+  Le prix assumé : on ne peut pas ajouter une ligne depuis le téléphone, en club, juste après avoir vu une position intéressante. Cette limite est acceptée.
+
+D5. Deux directions d'entraînement valent mieux que la répétition espacée classique, et sont ce qui distingue cet outil d'un Chessable : **exiger une raison écrite** pour tout coup du répertoire (cf. D4 — portée par le typage), et **entraîner la détection de la sortie de livre** plutôt que la récitation — l'application joue une partie et dévie à un moment imprévisible, c'est au joueur de remarquer qu'il n'est plus en terrain connu. Ces deux directions ne sont possibles que parce qu'il n'y a qu'un utilisateur : un champ obligatoire rédigé à la main détruirait la conversion d'un produit de masse.
 
 ### Questions ouvertes
 
 | # | Question | Pourquoi elle bloque |
 |---|---|---|
-| Q1 | D'où viennent les lignes en v1 — import PGN, study Lichess, saisie sur échiquier, amorçage depuis ses propres parties ? | Détermine s'il faut un échiquier interactif dès la v1, et quelle est la première brique à construire. |
-| Q2 | La clé est-elle l'EPD seul, ou le couple `(EPD, couleur du répertoire)` ? | Une même position peut appartenir au répertoire blanc et au noir avec des intentions différentes. À trancher avant la première table. |
+| Q1 | Quel format exact pour le fichier source du répertoire — PGN annoté, ou une structure TypeScript typée ? | D4 a tranché que le répertoire est en dur ; reste le format. Une structure TypeScript permet de rendre la justification obligatoire par le typage, un PGN annoté est plus portable vers d'autres outils. |
+| Q2 | La clé est-elle l'EPD seul, ou le couple `(EPD, couleur du répertoire)` ? | Une même position peut appartenir au répertoire blanc et au noir avec des intentions différentes. À trancher avant la première structure de données. |
 | Q3 | Quels modes d'entraînement en v1, et faut-il de la répétition espacée d'emblée ? | La répétition espacée est peut-être prématurée avant que le répertoire ait une taille réelle. |
 | Q4 | Que fait hors ligne tout ce qui dépend de l'API Lichess Opening Explorer ? | Les dumps pèsent 2,9 Go (masters) à 22 Go : inembarquables. Soit ces fonctions exigent le réseau et dégradent proprement, soit on embarque un jeu ECO curé. **Bloquant pour D5** : dévier du répertoire suppose une source de coups adverses. |
-| Q5 | Quelle bibliothèque d'échiquier ? | `cm-chessboard` est activement maintenu et sans dépendance ; `chessground` est passé en maintenance communautaire. À ne trancher qu'une fois Q1 répondue. |
+| Q5 | Quelle bibliothèque d'échiquier, et en faut-il une ? | Le répertoire étant édité dans l'IDE (D4), aucun échiquier interactif n'est nécessaire pour la **saisie**. Il en faut un pour l'**affichage** pendant le drill, et le besoin est bien plus modeste : `cm-chessboard` (maintenu, sans dépendance, SVG) suffirait, voire un rendu statique. |
 
-L'amorçage du répertoire depuis l'historique de ses propres parties a été examiné et **écarté comme source de vérité** : un répertoire dérivé de ses parties enregistre ce qu'on **a** joué, mauvaises habitudes comprises, alors qu'un répertoire est ce qu'on **devrait** jouer. Le garde-fou envisagé ne se déclenche jamais sur une erreur jouée systématiquement. La piste reste valable comme **amorçage** contre le démarrage à froid — c'est l'objet de Q1.
+L'amorçage du répertoire depuis l'historique de ses propres parties a été examiné et **écarté comme source de vérité** : un répertoire dérivé de ses parties enregistre ce qu'on **a** joué, mauvaises habitudes comprises, alors qu'un répertoire est ce qu'on **devrait** jouer. Le garde-fou envisagé ne se déclenche jamais sur une erreur jouée systématiquement. La piste garde une valeur d'**audit** — comparer ses parties au répertoire pour voir où il a lâché — mais plus de valeur de sourcing depuis D4.
 
 ---
 
 ## Hypothèses
 
-H1. **Contexte de jeu supposé amical ou de club, pas de tournoi homologué.** Déduit du rejet du multi-période, pas d'une réponse directe. Si du tournoi homologué entre dans le tableau, R1 et l'exclusion du multi-période sont à reprendre.
+H1. **Le journal de la partie en cours reste la seule donnée du navigateur qui compte** (R25 à R27). Il est jetable une fois la partie finie, donc aucune mesure de durabilité renforcée ne le concerne. Si un jour la progression de révision du répertoire devient précieuse, la question de la durabilité se reposera — pour elle seule, et pas pour le répertoire lui-même (cf. D4).
 
-H2. `navigator.storage.persist()` est une **demande**, pas une garantie. Le navigateur peut refuser, et l'accorde plus volontiers à une PWA installée qu'à un onglet ordinaire.
+H2. **Le drill du répertoire suppose une source de coups adverses** hors répertoire pour pouvoir dévier de façon imprévisible (D5). Tant que Q4 n'est pas tranchée, on ne sait pas si cette source est le réseau, un jeu ECO embarqué ou un moteur — et donc si le mode fonctionne hors ligne.
 
-H3. Un export manuel qu'on oublie de faire ne protège de rien. Rendre l'export routinier est un problème d'usage, pas de code, et n'est pas résolu par cette spec.
+**Contexte de jeu confirmé :** parties amicales et de club, pas de tournoi homologué. C'est ce qui justifie l'exclusion du multi-période, et ce n'est plus une hypothèse.
 
 ---
 

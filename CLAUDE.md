@@ -16,7 +16,8 @@ Non négociables. Chacune vient d'un incident vécu ou d'une vérification adver
 - **La source de temps est injectée, jamais lue en dur.** Le moteur reçoit une interface `Clock` en paramètre et n'appelle pas `Date.now()` directement. C'est ce qui rend testable une partie multi-période de trois heures en quelques millisecondes, et ce qui évite de booster une constante puis d'oublier de la remettre avant le commit.
 - **Toute durée entière.** Une durée fractionnaire accumulée corrompt l'horloge à la longue.
 - **La clé du répertoire est un EPD, pas un FEN.** Les quatre premiers champs seulement : placement, trait, roques, en passant. Le FEN complet contient le compteur de demi-coups et le numéro de coup, qui *diffèrent entre deux transpositions vers la même position* — l'inclure fait échouer la convergence en silence et reconstruit l'arbre de lignes qu'on voulait éviter.
-- **Le répertoire est la seule donnée irremplaçable du projet.** Demander `navigator.storage.persist()`, offrir un export/import complet, et coupler explicitement version d'application et version de schéma. Une éviction de stockage ou un service worker périmé sur une migration donne une perte silencieuse.
+- **Le répertoire est une donnée source versionnée dans le repo**, éditée dans l'IDE, jamais saisie dans l'application. Il est donc sauvegardé et diffable par construction. Corollaire : la justification d'un coup est un champ **requis par le typage** (un coup sans raison ne compile pas), et une contradiction entre deux lignes qui transposent vers la même position est une **erreur de build**, pas une notification à l'utilisateur.
+- **Rien de précieux ne vit dans le stockage du navigateur.** Le journal de la partie en cours est jetable une fois la partie finie. Ne pas construire de dispositif de durabilité (`navigator.storage.persist()`, export/import) sans qu'une donnée le justifie réellement.
 
 ## Pièges connus qui s'appliquent ici
 
