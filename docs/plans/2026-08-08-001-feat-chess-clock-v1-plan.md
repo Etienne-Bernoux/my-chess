@@ -70,7 +70,9 @@ Traçabilité vers les exigences de `SPECS.md`. Chaque R est porté par au moins
 
 **KTD1. Pas de framework UI — TypeScript nu.** *(session-settled: user-directed — retenu contre Svelte 5 : l'affichage n'a que quatre valeurs dérivées, toutes recalculées par le fold à chaque frame ; une fonction `render(root, view)` idempotente appelée par `requestAnimationFrame` les couvre sans dépendance runtime.)* Écarte au passage le piège « dépendances réactives invisibles » listé dans `CLAUDE.md`, qui a frappé trois fois en une session sur un autre projet.
 
-**KTD2. `Date.now()` comme source de temps, pas `performance.now()`.** `performance.now()` est monotone mais repart de zéro à chaque chargement de page : il ne peut pas mesurer le temps écoulé pendant que l'application était fermée (R26). On prend donc le temps mural, et on se protège du saut d'horloge NTP dans le fold : chaque avance est `max(0, t - curseur)`, jamais négative. Un saut en arrière fige la pendule le temps du rattrapage ; il ne rend jamais de temps.
+**KTD2. `Date.now()` comme source de temps, pas `performance.now()`.** `performance.now()` est monotone mais repart de zéro à chaque chargement de page : il ne peut pas mesurer le temps écoulé pendant que l'application était fermée (R26). On prend donc le temps mural, et on se protège du saut d'horloge en arrière dans le fold : chaque avance est `max(0, t - curseur)`, et le curseur lui-même est une **ligne de plus haute eau** (`max(curseur, t)`) — sans quoi le clamp protégerait le pas courant mais laisserait le curseur se poser dans le passé, et l'intervalle suivant surfacturerait le joueur au trait. Symétriquement, la couche commande n'écrit jamais un horodatage antérieur au précédent.
+
+  **Limite connue, non couverte :** un saut d'horloge **vers l'avant** (resynchronisation NTP, réglage manuel) est indiscernable d'un temps réellement écoulé sans référence monotone, et est donc facturé au joueur au trait. Le remède est de dériver les deltas d'une source monotone en ne gardant le temps mural que pour mesurer une absence — c'est un changement de structure, pas un correctif, et il reste à trancher.
 
 **KTD3. Les taps sans effet ne sont pas écrits au journal.** R9 dit qu'un tap sur la moitié du joueur qui n'est pas au trait n'a aucun effet. Un événement sans effet dans un journal append-only est du bruit qui casse l'undo (R24) : « retirer le dernier événement » retirerait un non-événement. La couche commande rejette le tap et n'appose rien. Le fold reste néanmoins tolérant à un tap inapplicable — une sauvegarde d'une version antérieure ou altérée peut en contenir (R27).
 
@@ -322,7 +324,9 @@ Déclaration de périmètre, pas contrainte : les listes `**Files:**` par unité
 3. `tap(journal, at, half)` : R7, valide seulement si `fold(journal, at).running === half`. Sinon `null` (R9).
 4. `pause` / `resume` : refusés quand ils sont sans objet (pause d'une pendule déjà en pause, reprise d'une pendule qui tourne).
 5. `undo(journal)` : retire le **dernier** événement s'il s'agit d'un `tap` (R24). Ne s'appuie sur aucun état sauvegardé — le rejeu du journal amputé restitue le temps exact parce que le fold est pur. Refusé si le dernier événement n'est pas un tap.
-6. Toutes les commandes sont refusées après chute du drapeau, sauf `undo` : annuler le dernier tap alors que le drapeau vient de tomber est un cas légitime (on a tapé trop tard) et doit rendre l'état d'avant ce tap.
+6. Toutes les commandes sont refusées après chute du drapeau, **`undo` compris**.
+
+  *Corrigé en revue — la première rédaction de ce plan autorisait l'undo après la chute, au motif qu'« on a pu taper trop tard ». C'est faux : un tap postérieur à la chute est déjà refusé, donc il n'y a rien à annuler. Le seul cas où l'undo post-drapeau agit vraiment est celui où il retire le tap qui **précède** la chute — ce qui rend la main au cédant depuis son propre tap et lui fait payer la réflexion de son adversaire. Le drapeau tombe alors sur l'autre joueur. Un geste, irréversible, qui change le perdant.*
 
 **Test scenarios :**
 - **Démarrage et orientation (R8)** : un tap de démarrage sur `top` fait de `top` la moitié des Blancs et lance `top` ; le même tap sur `bottom` produit l'orientation miroir.
