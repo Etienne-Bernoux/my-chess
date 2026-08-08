@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "blitz-3-2-fischer",
+      "label": "Blitz 3+2",
+      "mode": "fischer",
+      "initialMs": { "white": 180000, "black": 180000 },
+      "incrementMs": 2000
+    },
+    {
+      "id": "blitz-5-0-fischer",
+      "label": "Blitz 5+0",
+      "mode": "fischer",
+      "initialMs": { "white": 300000, "black": 300000 },
+      "incrementMs": 0
+    },
+    {
+      "id": "bullet-1-0-fischer",
+      "label": "Bullet 1+0",
+      "mode": "fischer",
+      "initialMs": { "white": 60000, "black": 60000 },
+      "incrementMs": 0
+    },
+    {
+      "id": "rapide-10-5-fischer",
+      "label": "Rapide 10+5",
+      "mode": "fischer",
+      "initialMs": { "white": 600000, "black": 600000 },
+      "incrementMs": 5000
+    },
+    {
+      "id": "rapide-15-10-fischer",
+      "label": "Rapide 15+10",
+      "mode": "fischer",
+      "initialMs": { "white": 900000, "black": 900000 },
+      "incrementMs": 10000
+    },
+    {
+      "id": "blitz-3-2-bronstein",
+      "label": "Blitz 3+2 Bronstein",
+      "mode": "bronstein",
+      "initialMs": { "white": 180000, "black": 180000 },
+      "incrementMs": 2000
+    },
+    {
+      "id": "rapide-10-5-bronstein",
+      "label": "Rapide 10+5 Bronstein",
+      "mode": "bronstein",
+      "initialMs": { "white": 600000, "black": 600000 },
+      "incrementMs": 5000
+    }
+  ]
+}
