@@ -9,10 +9,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test"
   },
   "packageManager": "pnpm@11.1.2",
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
