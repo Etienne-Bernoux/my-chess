@@ -1,5 +1,7 @@
 import { TENTHS_BELOW_MS, formatRemaining } from './format'
 import { URGENT_BELOW_MS } from '../domain/types'
+import { CUSTOM_ID } from '../presets/custom'
+import type { CustomDraft } from '../presets/custom'
 import type { Half, TimeControl, View } from '../domain/types'
 
 /**
@@ -26,6 +28,10 @@ export type UiModel = {
   readonly canExport: boolean
   readonly presets: readonly TimeControl[]
   readonly selectedPresetId: string
+  /** La saisie manuelle en cours ; n'est affichée que sous l'entrée `custom`. */
+  readonly custom: CustomDraft
+  /** Ce qui empêche la saisie manuelle de produire une cadence, s'il y a lieu. */
+  readonly customError: string | null
   /** R11 : le reset a été armé, le prochain appui abandonne réellement la partie. */
   readonly resetArmed: boolean
   readonly note: string
@@ -42,6 +48,15 @@ export type Elements = {
   readonly overlayNote: HTMLElement
   readonly presetField: HTMLElement
   readonly presetSelect: HTMLSelectElement
+  readonly customFields: HTMLElement
+  readonly customTimeField: HTMLElement
+  readonly customMinutes: HTMLInputElement
+  readonly customHandicap: HTMLInputElement
+  readonly customHandicapFields: HTMLElement
+  readonly customWhite: HTMLInputElement
+  readonly customBlack: HTMLInputElement
+  readonly customIncrement: HTMLInputElement
+  readonly customModes: Readonly<Record<'fischer' | 'bronstein', HTMLInputElement>>
   readonly silentToggle: HTMLInputElement
   readonly resumeButton: HTMLButtonElement
   readonly exportButton: HTMLButtonElement
@@ -72,6 +87,18 @@ export function queryElements(root: ParentNode = document): Elements {
     overlayNote: required(root, 'overlay-note'),
     presetField: required(root, 'preset-field'),
     presetSelect: required<HTMLSelectElement>(root, 'preset-select'),
+    customFields: required(root, 'custom-fields'),
+    customTimeField: required(root, 'custom-time-field'),
+    customMinutes: required<HTMLInputElement>(root, 'custom-minutes'),
+    customHandicap: required<HTMLInputElement>(root, 'custom-handicap'),
+    customHandicapFields: required(root, 'custom-handicap-fields'),
+    customWhite: required<HTMLInputElement>(root, 'custom-white'),
+    customBlack: required<HTMLInputElement>(root, 'custom-black'),
+    customIncrement: required<HTMLInputElement>(root, 'custom-increment'),
+    customModes: {
+      fischer: required<HTMLInputElement>(root, 'custom-mode-fischer'),
+      bronstein: required<HTMLInputElement>(root, 'custom-mode-bronstein'),
+    },
     silentToggle: required<HTMLInputElement>(root, 'silent-toggle'),
     resumeButton: required<HTMLButtonElement>(root, 'resume-button'),
     exportButton: required<HTMLButtonElement>(root, 'export-button'),
@@ -134,11 +161,53 @@ const overlayText = (
   }
 }
 
+/**
+ * L'entrée manuelle ferme toujours la liste : elle n'est pas une cadence parmi
+ * les autres mais la porte de sortie du catalogue, et la chercher au milieu des
+ * presets coûterait un aller-retour de lecture avant chaque partie.
+ */
+export const CUSTOM_OPTION_LABEL = 'Personnalisée…'
+
 function syncPresets(select: HTMLSelectElement, presets: readonly TimeControl[]): void {
-  if (select.options.length === presets.length) return
+  if (select.options.length === presets.length + 1) return
   select.replaceChildren(
     ...presets.map((preset) => new Option(preset.label, preset.id)),
+    new Option(CUSTOM_OPTION_LABEL, CUSTOM_ID),
   )
+}
+
+/**
+ * Ne réécrit jamais un champ que le doigt est en train de remplir. Effacer pour
+ * retaper laisse le champ transitoirement vide — donc invalide — et le repeupler
+ * à la frame suivante le rendrait impossible à corriger. Le rendu reste
+ * idempotent : il est fonction de l'état *et* du champ qui a le focus.
+ */
+function setNumberField(input: HTMLInputElement, value: number): void {
+  if (input.ownerDocument.activeElement === input) return
+  const text = Number.isFinite(value) ? String(value) : ''
+  if (input.value !== text) input.value = text
+}
+
+function renderCustomFields(el: Elements, model: UiModel): void {
+  const open = model.selectedPresetId === CUSTOM_ID
+  el.customFields.hidden = !open
+  if (!open) return
+
+  const draft = model.custom
+
+  // Le champ unique et la paire par couleur ne coexistent jamais : deux temps
+  // affichés en même temps ne diraient pas lequel s'applique.
+  el.customHandicap.checked = draft.handicap
+  el.customTimeField.hidden = draft.handicap
+  el.customHandicapFields.hidden = !draft.handicap
+
+  setNumberField(el.customMinutes, draft.minutes)
+  setNumberField(el.customWhite, draft.whiteMinutes)
+  setNumberField(el.customBlack, draft.blackMinutes)
+  setNumberField(el.customIncrement, draft.incrementSeconds)
+
+  el.customModes.fischer.checked = draft.mode === 'fischer'
+  el.customModes.bronstein.checked = draft.mode === 'bronstein'
 }
 
 const toggleClass = (element: HTMLElement, name: string, on: boolean): void => {
@@ -194,7 +263,11 @@ export function render(el: Elements, model: UiModel, now: number): void {
   const text = overlayText(model.overlay, resumable)
   el.overlayTitle.textContent = text.title
   el.overlayHint.textContent = text.hint
-  el.overlayNote.textContent = model.note
+
+  // Ce qui empêche d'ouvrir une partie passe devant tout le reste : la note
+  // ordinaire (journal copié, sauvegarde ignorée) n'attend pas de geste.
+  el.overlayNote.textContent = model.customError ?? model.note
+  toggleClass(el.overlayNote, 'is-error', model.customError !== null)
 
   // La cadence reste choisissable en toutes circonstances : la sélection n'est
   // qu'un choix armé, c'est « Nouvelle partie » qui l'applique. Un select grisé
@@ -205,6 +278,7 @@ export function render(el: Elements, model: UiModel, now: number): void {
   if (el.presetSelect.value !== model.selectedPresetId) {
     el.presetSelect.value = model.selectedPresetId
   }
+  renderCustomFields(el, model)
 
   el.silentToggle.checked = model.silent
 
@@ -217,6 +291,9 @@ export function render(el: Elements, model: UiModel, now: number): void {
   // demande un second appui — l'accueil s'ouvrant seul au lancement, un unique
   // geste suffirait sinon à jeter la partie en cours.
   el.resetButton.hidden = false
+  // Une saisie qui ne produit pas de cadence ne doit pas pouvoir ouvrir une
+  // partie : on refuse et on dit pourquoi, plutôt que de corriger dans le dos.
+  el.resetButton.disabled = model.customError !== null
   el.resetButton.textContent = model.resetArmed
     ? 'Confirmer l’abandon'
     : resumable

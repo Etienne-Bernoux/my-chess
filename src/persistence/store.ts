@@ -1,7 +1,8 @@
 import { fold } from '../domain/fold'
 import { parseJournal, serialize } from './codec'
+import { parseTimeControl, presetById } from '../presets/presets'
 import type { ParseResult } from './codec'
-import type { Journal } from '../domain/types'
+import type { Journal, TimeControl } from '../domain/types'
 
 /**
  * Adaptateur mince et injectable : c'est le seul endroit du projet qui touche au
@@ -14,7 +15,9 @@ export interface KeyValueStore {
 }
 
 const JOURNAL_KEY = 'mychess.journal'
-const LAST_PRESET_KEY = 'mychess.lastPreset'
+const LAST_TIME_CONTROL_KEY = 'mychess.lastTimeControl'
+/** Schéma précédent : seule la référence à un preset était mémorisée. */
+const LEGACY_LAST_PRESET_KEY = 'mychess.lastPreset'
 const SILENT_KEY = 'mychess.silent'
 
 export function memoryStore(seed: Readonly<Record<string, string>> = {}): KeyValueStore {
@@ -66,12 +69,40 @@ export const isResumable = (journal: Journal, now: number): boolean => {
   return view.phase !== 'idle' && view.phase !== 'flagged'
 }
 
-/** R30 : la dernière cadence utilisée, proposée par défaut au lancement suivant. */
-export const saveLastPresetId = (store: KeyValueStore, id: string): void =>
-  store.write(LAST_PRESET_KEY, id)
+/**
+ * R30 : la dernière cadence utilisée, proposée par défaut au lancement suivant.
+ * C'est la cadence entière qui est mémorisée, et non plus une référence à un
+ * preset : une cadence saisie à la main n'existe dans aucune liste, et devoir la
+ * ressaisir à chaque partie viderait R30 de son sens le soir où l'on joue à
+ * handicap.
+ */
+export function saveLastTimeControl(store: KeyValueStore, timeControl: TimeControl): void {
+  store.write(LAST_TIME_CONTROL_KEY, JSON.stringify(timeControl))
+  // La clé de l'ancien schéma ne sert qu'à la migration : la laisser derrière
+  // ferait ressurgir un preset périmé si la nouvelle devenait illisible.
+  store.remove(LEGACY_LAST_PRESET_KEY)
+}
 
-export const loadLastPresetId = (store: KeyValueStore): string | null =>
-  store.read(LAST_PRESET_KEY)
+function readTimeControl(raw: string | null): TimeControl | null {
+  if (raw === null) return null
+  try {
+    return parseTimeControl(JSON.parse(raw))
+  } catch {
+    // Une préférence illisible n'est qu'une préférence perdue : l'appelant
+    // retombe sur le premier preset. Rien d'irremplaçable ne vit ici (H1).
+    return null
+  }
+}
+
+export function loadLastTimeControl(store: KeyValueStore): TimeControl | null {
+  const stored = readTimeControl(store.read(LAST_TIME_CONTROL_KEY))
+  if (stored !== null) return stored
+
+  // Repli sur le schéma précédent : ignorer cette clé rejetterait sur le premier
+  // preset le téléphone qui a déjà servi, ce qui est exactement ce que R30 évite.
+  const legacyId = store.read(LEGACY_LAST_PRESET_KEY)
+  return legacyId === null ? null : presetById(legacyId)
+}
 
 /** R15 : le mode silencieux survit à la fermeture de l'application. */
 export const saveSilent = (store: KeyValueStore, silent: boolean): void =>

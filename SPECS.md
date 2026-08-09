@@ -1,5 +1,5 @@
 ---
-date: 2026-08-08
+date: 2026-08-09
 projet: myChess
 portee: pendule v1 detaillee, repertoire en orientations
 ---
@@ -32,7 +32,7 @@ R2. Un incrément de zéro est un réglage valide et couvre la mort subite. Il n
 
 R3. Les deux modes partagent une formule unique. Le gain rendu en fin de coup est `increment` en Fischer, et `min(increment, elapsed)` en Bronstein. Aucun mode ne doit être implémenté comme un cas particulier greffé sur l'autre.
 
-R4. Le temps initial est stocké **par joueur**, pas globalement, même si aucune interface ne permet de les régler séparément en v1. Un handicap se réduit alors à exposer un champ, jamais à migrer un schéma.
+R4. Le temps initial est stocké **par joueur**, pas globalement. C'est ce qui a permis d'exposer le handicap (R32) sans migrer un schéma.
 
 ### Disposition et interaction
 
@@ -114,9 +114,19 @@ R28. Le journal d'une partie est **exportable**. Un journal exporté se rejoue t
 
 ### Presets
 
-R29. Un petit jeu de cadences est fourni dans un **fichier JSON versionné**, éditable à la main. Pas d'éditeur visuel en v1.
+R29. Un petit jeu de cadences est fourni dans un **fichier JSON versionné**, éditable à la main.
 
-R30. La dernière cadence utilisée est mémorisée et proposée par défaut au lancement suivant.
+R30. La dernière cadence utilisée est mémorisée et proposée par défaut au lancement suivant. C'est la **cadence entière** qui est mémorisée, et non une référence à un preset : une cadence saisie à la main (R31) n'existe dans aucune liste, et ne pas la retenir obligerait à la ressaisir avant chaque partie.
+
+R31. Une cadence peut être **saisie dans l'application** — temps, incrément, mode — sans passer par le fichier de presets. Elle vit derrière une entrée dédiée de la liste des cadences, qui ferme celle-ci : l'écran d'accueil reste identique tant qu'on ne la choisit pas.
+
+  La saisie est en minutes et secondes entières. Conséquence assumée : une cadence sous la minute ne s'exprime pas à la main, et reste l'affaire du fichier de presets.
+
+  Une saisie qui ne produit pas de cadence valide **n'ouvre pas de partie** : le bouton est refusé et la raison affichée. Rien n'est réparé en silence — une cadence corrigée dans le dos partirait sur la mauvaise partie de club.
+
+R32. Les deux camps peuvent recevoir des **temps initiaux distincts** (handicap). Le réglage est derrière un interrupteur, et seulement en cadence manuelle : le handicap est rare, et lui faire payer un champ de plus à chaque partie serait un mauvais échange. Un preset asymétrique n'aurait pas de sens dans un fichier versionné générique.
+
+  Les temps se règlent **par couleur**, jamais par moitié d'écran : l'orientation des deux camps n'est connue qu'au premier tap (R8), et c'est lui qui attribue les deux temps. Sur l'écran d'accueil, les deux valeurs sont donc affichées dans une orientation qui n'est pas encore décidée.
 
 ---
 
@@ -128,7 +138,7 @@ R30. La dernière cadence utilisée est mémorisée et proposée par défaut au 
 - **Délai américain.** Il produit exactement le même temps restant que Bronstein à chaque fin de coup et ne diffère que par l'affichage pendant le coup. Deux implémentations pour un résultat identique, c'est de la surface de bug pour rien.
 - **Byo-yomi.**
 
-**Reporté sans date :** interface de réglage des temps asymétriques (la structure de données est prête, cf. R4), éditeur visuel de cadences, tout ce qui touche au répertoire.
+**Reporté sans date :** enregistrement de cadences nommées depuis l'application (une cadence saisie est mémorisée comme *dernière utilisée*, cf. R30, pas ajoutée à la liste), tout ce qui touche au répertoire.
 
 ---
 
@@ -205,6 +215,8 @@ Le partage est délibéré, et il découle de ce qui est réellement vérifiable
 
 **Vérifié à la main sur le téléphone.** Toute l'ergonomie. Un audit mobile nomme les éléments cassés — il ne rend pas un booléen, et `scrollWidth <= innerWidth` ne prouve rien puisque `overflow-x: hidden` le masque. À contrôler explicitement : les deux moitiés sont atteignables et pivotées correctement, la bande centrale ne vole aucun tap, la confirmation visuelle de R12 est perceptible sans fixer l'écran, l'écran d'accueil ne coûte pas un geste de trop avant chaque partie, et l'abandon d'une partie en cours demande bien un second appui qui se voit (R11b).
 
+Pour la saisie manuelle (R31, R32) : la révélation des champs ne pousse pas le bouton hors de l'écran, le clavier numérique ne masque pas le champ en cours de remplissage, et l'échange des deux temps au premier tap — inévitable puisque l'orientation n'est décidée qu'à cet instant — ne fait pas croire à une erreur.
+
 **Les deux chemins**, chaque fois qu'ils existent : partie jouée en direct **et** reprise après interruption.
 
 Un vrai rechargement se prouve en redémarrant le serveur de développement, pas avec un `location.reload()` piloté à distance.
@@ -213,8 +225,8 @@ Un vrai rechargement se prouve en redémarrant le serveur de développement, pas
 
 ## Découpage
 
-**v1 — pendule utilisable en club.** R1 à R30. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
+**v1 — pendule utilisable en club.** R1 à R32. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
 
-**v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : interface des temps asymétriques, éditeur de cadences, export du journal si R28 n'a pas été fait en v1.
+**v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : cadences nommées enregistrables, granularité de saisie sous la minute si R31 se révèle trop grossière à l'usage.
 
 **v3 — répertoire.** Ouvre par la réponse à Q1 (la clé) et Q3 (le comportement hors ligne), qui décident de tout le reste.

@@ -6,6 +6,7 @@ import { TestClock } from './domain/clock'
 import { parseJournal } from './persistence/codec'
 import { loadJournal, memoryStore } from './persistence/store'
 import { RESET_ARM_MS } from './ui/render'
+import { CUSTOM_ID } from './presets/custom'
 import type { App } from './app'
 import type { AudioSink, Cue } from './audio/cues'
 import type { KeyValueStore } from './persistence/store'
@@ -68,6 +69,30 @@ const click = (id: string): void => {
   document.querySelector<HTMLElement>(`#${id}`)!.click()
   app.draw()
 }
+
+const choose = (value: string): void => {
+  const select = document.querySelector<HTMLSelectElement>('#preset-select')!
+  select.value = value
+  select.dispatchEvent(new Event('change', { bubbles: true }))
+  app.draw()
+}
+
+const fill = (id: string, value: string): void => {
+  const input = document.querySelector<HTMLInputElement>(`#${id}`)!
+  input.value = value
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  app.draw()
+}
+
+const check = (id: string, on: boolean): void => {
+  const input = document.querySelector<HTMLInputElement>(`#${id}`)!
+  input.checked = on
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  app.draw()
+}
+
+const disabled = (selector: string): boolean =>
+  document.querySelector<HTMLButtonElement>(selector)!.disabled
 
 function journal(): Journal {
   const result = loadJournal(store)
@@ -508,5 +533,169 @@ describe('reprise à l’ouverture (R26)', () => {
     enterGame()
     press('half-bottom')
     expect(types(journal().events)).toEqual(['start'])
+  })
+})
+
+describe('cadence manuelle et handicap (R4, R31, R32)', () => {
+  const openSettings = (): void => {
+    click('menu-button')
+    choose(CUSTOM_ID)
+  }
+
+  it('les champs n’apparaissent que sous l’entrée manuelle du select', () => {
+    click('menu-button')
+    expect(hidden('#custom-fields')).toBe(true)
+
+    choose(CUSTOM_ID)
+    expect(hidden('#custom-fields')).toBe(false)
+
+    choose('blitz-5-0-fischer')
+    expect(hidden('#custom-fields')).toBe(true)
+  })
+
+  it('R31 : la cadence saisie s’applique à la partie ouverte, incrément compris', () => {
+    openSettings()
+    fill('custom-minutes', '7')
+    fill('custom-increment', '4')
+    click('reset-button')
+
+    expect(text('#clock-bottom')).toBe('7:00')
+
+    press('half-bottom')
+    clock.set(START_AT + 10_000)
+    press('half-bottom') // dix secondes consommées, quatre rendues
+    expect(text('#clock-bottom')).toBe('6:54')
+  })
+
+  it('R32 : le handicap donne à chaque camp son temps, et l’orientation vient du seul premier tap (R8)', () => {
+    openSettings()
+    check('custom-handicap', true)
+    fill('custom-white', '5')
+    fill('custom-black', '3')
+    click('reset-button')
+
+    // R8 : les Noirs lancent en tapant la moitié adverse — le haut devient donc
+    // celle des Blancs, et c'est ce tap seul qui attribue les deux temps.
+    press('half-top')
+    expect(text('#clock-top')).toBe('5:00')
+    expect(text('#clock-bottom')).toBe('3:00')
+  })
+
+  it('R32 : lancer par l’autre moitié échange les deux temps', () => {
+    openSettings()
+    check('custom-handicap', true)
+    fill('custom-white', '5')
+    fill('custom-black', '3')
+    click('reset-button')
+
+    press('half-bottom')
+    expect(text('#clock-bottom')).toBe('5:00')
+    expect(text('#clock-top')).toBe('3:00')
+  })
+
+  it('cocher le handicap part du temps affiché', () => {
+    openSettings()
+    fill('custom-minutes', '12')
+    check('custom-handicap', true)
+
+    expect(document.querySelector<HTMLInputElement>('#custom-white')!.value).toBe('12')
+    expect(document.querySelector<HTMLInputElement>('#custom-black')!.value).toBe('12')
+    // Le champ unique s'efface : deux temps affichés ne diraient pas lequel vaut.
+    expect(hidden('#custom-time-field')).toBe(true)
+  })
+
+  it('ne réécrit pas un handicap déjà réglé quand on décoche puis se ravise', () => {
+    openSettings()
+    check('custom-handicap', true)
+    fill('custom-white', '5')
+    fill('custom-black', '3')
+
+    check('custom-handicap', false)
+    check('custom-handicap', true)
+    expect(document.querySelector<HTMLInputElement>('#custom-black')!.value).toBe('3')
+  })
+
+  it('cocher le handicap depuis des champs par camp vides recopie quand même le temps', () => {
+    openSettings()
+    fill('custom-white', '')
+    fill('custom-black', '')
+    fill('custom-minutes', '8')
+    check('custom-handicap', true)
+
+    // `NaN !== NaN` ferait passer deux champs vides pour un handicap déjà réglé,
+    // et la cadence resterait invalide sans qu'on voie pourquoi.
+    expect(disabled('#reset-button')).toBe(false)
+    click('reset-button')
+    press('half-bottom')
+    expect(text('#clock-bottom')).toBe('8:00')
+    expect(text('#clock-top')).toBe('8:00')
+  })
+
+  it('une saisie invalide n’ouvre pas de partie, et dit pourquoi', () => {
+    openSettings()
+    fill('custom-minutes', '') // champ vidé pour être retapé
+
+    expect(disabled('#reset-button')).toBe(true)
+    expect(text('#overlay-note')).toMatch(/entier/i)
+
+    click('reset-button')
+    expect(hidden('#overlay')).toBe(false) // rien ne s'est ouvert
+
+    fill('custom-minutes', '4')
+    expect(disabled('#reset-button')).toBe(false)
+    click('reset-button')
+    expect(hidden('#overlay')).toBe(true)
+    expect(text('#clock-bottom')).toBe('4:00')
+  })
+
+  it('R30 : une cadence manuelle est reproposée au lancement suivant', () => {
+    openSettings()
+    check('custom-handicap', true)
+    fill('custom-white', '9')
+    fill('custom-black', '6')
+    fill('custom-increment', '0')
+    click('reset-button')
+
+    app.dispose()
+    app = mount()
+    enterGame()
+
+    // Elle n'existe dans aucune liste : seule la cadence entière, mémorisée,
+    // peut la restituer.
+    press('half-bottom')
+    expect(text('#clock-bottom')).toBe('9:00')
+    expect(text('#clock-top')).toBe('6:00')
+  })
+
+  it('la saisie repart de la cadence en vigueur, pas d’un état neutre', () => {
+    click('menu-button')
+    choose('rapide-15-10-fischer')
+    click('reset-button')
+
+    click('menu-button')
+    choose(CUSTOM_ID)
+    expect(document.querySelector<HTMLInputElement>('#custom-minutes')!.value).toBe('15')
+    expect(document.querySelector<HTMLInputElement>('#custom-increment')!.value).toBe('10')
+  })
+
+  it('une préférence de cadence illisible retombe sur le premier preset', () => {
+    app.dispose()
+    store.write('mychess.lastTimeControl', '{"id":"custom"')
+    app = mount()
+    enterGame()
+
+    expect(text('#clock-bottom')).toBe('3:00') // Blitz 3+2, premier preset
+  })
+
+  it('R30 : le schéma précédent, qui ne mémorisait qu’un identifiant, est repris', () => {
+    app.dispose()
+    // Le téléphone qui migre n'a que l'ancienne clé : le montage du test en a
+    // déjà écrit une nouvelle, qui masquerait la migration qu'on veut prouver.
+    store.remove('mychess.lastTimeControl')
+    store.write('mychess.lastPreset', 'rapide-10-5-fischer')
+    app = mount()
+    enterGame()
+
+    expect(text('#clock-bottom')).toBe('10:00')
   })
 })
