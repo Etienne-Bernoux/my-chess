@@ -172,6 +172,23 @@ describe('render — écran de pause (R11)', () => {
     expect(el.overlayTitle.textContent).toMatch(/en cours/i)
   })
 
+  it('le bouton de la bande dit « Réglages » à l’arrêt et « Pause » en partie', () => {
+    render(el, model(newJournal(tc()), START_AT), START_AT)
+    expect(el.menuButton.textContent).toBe('Réglages')
+    expect(el.menuButton.getAttribute('aria-label')).toBe('Réglages')
+
+    const journal = start(newJournal(tc()), START_AT, WHITE)!
+    render(el, model(journal, START_AT), START_AT)
+    expect(el.menuButton.textContent).toBe('❚❚')
+    expect(el.menuButton.getAttribute('aria-label')).toBe('Pause')
+
+    // Drapeau tombé : il n'y a plus rien à mettre en pause.
+    const flagged = start(newJournal(tc({ initialMs: { white: 5_000, black: 5_000 } })), START_AT, WHITE)!
+    const at = START_AT + 6_000
+    render(el, model(flagged, at), at)
+    expect(el.menuButton.getAttribute('aria-label')).toBe('Réglages')
+  })
+
   it('R11 : le reset armé s’annonce par son libellé et son remplissage', () => {
     const journal = start(newJournal(tc()), START_AT, WHITE)!
     render(el, model(journal, START_AT, { overlay: 'home', resetArmed: true }), START_AT)

@@ -52,7 +52,13 @@ R9b. Un tap est également sans effet si le joueur au trait n'a **pas encore con
 
 R10. Une **bande centrale étroite**, hors des deux zones de tap, porte la pause.
 
-R11. Le reset n'est accessible que **depuis l'écran de pause**. Il n'est jamais atteignable en un seul geste.
+R11. Le reset n'est **jamais atteignable depuis la pendule elle-même**. Il ne vit que sur un écran en superposition — accueil, pause, ou drapeau tombé.
+
+R11b. L'application s'ouvre **systématiquement sur un écran d'accueil**. La cadence y est présélectionnée (cf. R30) et modifiable, et une partie non close y est proposée à la reprise (cf. R26). Le bouton qui ouvre une partie **ne lance pas l'horloge** : c'est le tap de R8 qui décide de l'orientation des camps, et lui seul.
+
+  Choisir une cadence n'est qu'un choix armé, jamais une action : c'est le bouton qui l'applique. Sans cela, régler la cadence détruirait la partie qu'on propose de reprendre, et il faudrait interdire l'un pour permettre l'autre.
+
+  L'accueil étant le seul écran qui s'ouvre **sans qu'on l'ait demandé**, y abandonner une partie non close exige un **second appui** : le bouton s'arme d'abord et l'annonce. Ailleurs, avoir ouvert l'écran est déjà le premier geste.
 
 ### Retours
 
@@ -197,7 +203,7 @@ Le partage est délibéré, et il découle de ce qui est réellement vérifiable
 
 **Testé pour de vrai, en Vitest, avec une horloge injectée.** Toute la logique de temps. C'est le seul domaine purement déterministe du projet, et celui qu'on ne peut pas vérifier à la main : personne ne reproduit un throttling de trente minutes, un tap trois millisecondes avant l'échéance, ou une reprise depuis un journal tronqué. Les scénarios à couvrir : Fischer et Bronstein sur une partie complète, incrément nul, undo puis rejeu, mise en arrière-plan longue, reprise après fermeture de l'application, journal corrompu.
 
-**Vérifié à la main sur le téléphone.** Toute l'ergonomie. Un audit mobile nomme les éléments cassés — il ne rend pas un booléen, et `scrollWidth <= innerWidth` ne prouve rien puisque `overflow-x: hidden` le masque. À contrôler explicitement : les deux moitiés sont atteignables et pivotées correctement, la bande centrale ne vole aucun tap, la confirmation visuelle de R12 est perceptible sans fixer l'écran, le reset demande bien deux gestes.
+**Vérifié à la main sur le téléphone.** Toute l'ergonomie. Un audit mobile nomme les éléments cassés — il ne rend pas un booléen, et `scrollWidth <= innerWidth` ne prouve rien puisque `overflow-x: hidden` le masque. À contrôler explicitement : les deux moitiés sont atteignables et pivotées correctement, la bande centrale ne vole aucun tap, la confirmation visuelle de R12 est perceptible sans fixer l'écran, l'écran d'accueil ne coûte pas un geste de trop avant chaque partie, et l'abandon d'une partie en cours demande bien un second appui qui se voit (R11b).
 
 **Les deux chemins**, chaque fois qu'ils existent : partie jouée en direct **et** reprise après interruption.
 
