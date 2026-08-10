@@ -5,13 +5,14 @@ import {
   clearJournal,
   isResumable,
   loadJournal,
-  loadLastPresetId,
+  loadLastTimeControl,
   loadSilent,
   saveJournal,
-  saveLastPresetId,
+  saveLastTimeControl,
   saveSilent,
 } from './persistence/store'
-import { PRESETS, presetById } from './presets/presets'
+import { DEFAULT_PRESET, PRESETS, presetById } from './presets/presets'
+import { CUSTOM_ID, buildCustom, draftFromTimeControl } from './presets/custom'
 import { RESET_ARM_MS, canResume, queryElements, render } from './ui/render'
 import { createWebAudioCues, cueForTransition } from './audio/cues'
 import { createWakeLock } from './platform/wakeLock'
@@ -19,6 +20,7 @@ import type { AudioSink } from './audio/cues'
 import type { ScreenWakeLock } from './platform/wakeLock'
 import type { OverlayMode } from './ui/render'
 import type { Clock } from './domain/clock'
+import type { CustomDraft, CustomResult } from './presets/custom'
 import type { KeyValueStore } from './persistence/store'
 import type { Half, Journal, View } from './domain/types'
 
@@ -50,7 +52,9 @@ export function createApp({
 }: AppDeps): App {
   const el = queryElements(root)
 
-  let journal: Journal = newJournal(presetById(loadLastPresetId(store)))
+  // R30 : la cadence entière est mémorisée, pas une référence à un preset — une
+  // cadence saisie à la main n'existe dans aucune liste.
+  let journal: Journal = newJournal(loadLastTimeControl(store) ?? DEFAULT_PRESET)
   // L'application s'ouvre toujours sur l'accueil : la cadence est vue et
   // confirmée avant qu'une partie de club ne parte sur la mauvaise.
   let overlay: OverlayMode = 'home'
@@ -72,7 +76,22 @@ export function createApp({
   // affichée : sur l'accueil d'une partie reprenable, il faut pouvoir en armer
   // une autre pour la partie suivante sans détruire celle qu'on propose de
   // reprendre. C'est le bouton qui applique, jamais la sélection.
-  let selectedPresetId = presetById(journal.timeControl.id).id
+  let selectedPresetId =
+    journal.timeControl.id === CUSTOM_ID ? CUSTOM_ID : presetById(journal.timeControl.id).id
+
+  // La saisie manuelle repart de la cadence en vigueur plutôt que d'un état
+  // neutre : ouvrir « Personnalisée… » pour ajuster deux minutes ne doit pas
+  // obliger à tout ressaisir.
+  let draft: CustomDraft = draftFromTimeControl(journal.timeControl)
+
+  /**
+   * La cadence armée est *dérivée* de la sélection et de la saisie, jamais tenue
+   * en parallèle : un miroir de plus serait un miroir à retenir d'accorder.
+   */
+  const armedTimeControl = (): CustomResult =>
+    selectedPresetId === CUSTOM_ID
+      ? buildCustom(draft)
+      : { ok: true, timeControl: presetById(selectedPresetId) }
 
   // R11 : instant du premier appui sur le reset. Comme le flash de R12, l'état
   // armé se dérive du temps écoulé plutôt que d'un `setTimeout` — un undo, une
@@ -97,9 +116,15 @@ export function createApp({
   // Ne lance jamais l'horloge : R8 veut que ce soit le premier tap des Noirs, sur
   // la moitié adverse, qui décide de l'orientation des deux camps.
   const startNewGame = (): void => {
-    journal = newJournal(presetById(selectedPresetId))
+    const armed = armedTimeControl()
+    // Le bouton est déjà désactivé dans ce cas : ce garde-fou existe pour que la
+    // règle « une saisie invalide n'ouvre pas de partie » vive dans la commande
+    // et pas seulement dans le rendu.
+    if (!armed.ok) return
+
+    journal = newJournal(armed.timeControl)
     clearJournal(store)
-    saveLastPresetId(store, journal.timeControl.id)
+    saveLastTimeControl(store, journal.timeControl)
     overlay = 'none'
     resetArmedAt = null
     note = ''
@@ -118,7 +143,7 @@ export function createApp({
       // R8 : les Noirs tapent la moitié située du côté de leur adversaire ;
       // l'orientation des deux camps se déduit de ce seul tap, et aucun écran ne
       // demande qui est Blanc.
-      if (commit(start(journal, now, half))) saveLastPresetId(store, journal.timeControl.id)
+      if (commit(start(journal, now, half))) saveLastTimeControl(store, journal.timeControl)
       return
     }
 
@@ -181,8 +206,60 @@ export function createApp({
   })
 
   el.presetSelect.addEventListener('change', () => {
-    selectedPresetId = presetById(el.presetSelect.value).id
+    const chosen = el.presetSelect.value
+    if (chosen !== CUSTOM_ID) {
+      selectedPresetId = presetById(chosen).id
+      return
+    }
+    // Basculer en manuel réamorce la saisie depuis la cadence qu'on quitte :
+    // ajuster deux minutes sur un preset ne doit pas obliger à tout ressaisir.
+    // Le brouillon posé au montage ne suffit pas — il vieillit dès qu'on touche
+    // à la liste.
+    const armed = armedTimeControl()
+    if (armed.ok) draft = draftFromTimeControl(armed.timeControl)
+    selectedPresetId = CUSTOM_ID
   })
+
+  // ---------- Saisie manuelle ----------
+
+  // `valueAsNumber` rend NaN sur un champ vide, et c'est ce qu'on veut : le
+  // brouillon porte alors une valeur invalide que la validation refuse, au lieu
+  // d'un zéro ou d'un ancien nombre qui ferait croire à une cadence réglée.
+  const readNumbers = (): void => {
+    draft = {
+      ...draft,
+      minutes: el.customMinutes.valueAsNumber,
+      whiteMinutes: el.customWhite.valueAsNumber,
+      blackMinutes: el.customBlack.valueAsNumber,
+      incrementSeconds: el.customIncrement.valueAsNumber,
+    }
+  }
+
+  for (const input of [el.customMinutes, el.customWhite, el.customBlack, el.customIncrement]) {
+    input.addEventListener('input', readNumbers)
+  }
+
+  el.customHandicap.addEventListener('change', () => {
+    const handicap = el.customHandicap.checked
+    // Cocher part du temps déjà affiché, mais ne réécrit jamais un handicap déjà
+    // réglé : décocher pour comparer puis se raviser perdrait sinon la saisie.
+    // Deux valeurs non finies ne comptent pas comme un réglage — `NaN !== NaN`
+    // les ferait passer pour différenciées et bloquerait la recopie.
+    const differentiated =
+      Number.isFinite(draft.whiteMinutes) &&
+      Number.isFinite(draft.blackMinutes) &&
+      draft.whiteMinutes !== draft.blackMinutes
+    draft =
+      handicap && !differentiated
+        ? { ...draft, handicap, whiteMinutes: draft.minutes, blackMinutes: draft.minutes }
+        : { ...draft, handicap }
+  })
+
+  for (const mode of ['fischer', 'bronstein'] as const) {
+    el.customModes[mode].addEventListener('change', () => {
+      if (el.customModes[mode].checked) draft = { ...draft, mode }
+    })
+  }
 
   el.silentToggle.addEventListener('change', () => {
     silent = el.silentToggle.checked
@@ -229,6 +306,8 @@ export function createApp({
     // pause, ni après la chute du drapeau.
     wakeLock.setDesired(view.phase === 'running')
 
+    const armed = armedTimeControl()
+
     render(
       el,
       {
@@ -239,6 +318,8 @@ export function createApp({
         canExport: journal.events.length > 0,
         presets: PRESETS,
         selectedPresetId,
+        custom: draft,
+        customError: armed.ok ? null : armed.reason,
         resetArmed: isResetArmed(now),
         note,
       },

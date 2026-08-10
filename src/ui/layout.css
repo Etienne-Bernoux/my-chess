@@ -204,6 +204,10 @@ body {
   display: none;
 }
 
+.panel-note.is-error {
+  color: #ff9aa3;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -240,9 +244,52 @@ body {
   opacity: 0.45;
 }
 
-#silent-toggle {
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.fields[hidden] {
+  display: none;
+}
+
+/* Les deux temps du handicap se lisent comme une paire ; `minmax(0, 1fr)` parce
+   qu'une piste `1fr` gonfle à son min-content et déborde le panneau. */
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.field-pair[hidden] {
+  display: none;
+}
+
+.number-input {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid #33333f;
+  background: #0e0e14;
+  color: var(--panel-fg);
+  font: inherit;
+}
+
+.number-input:invalid {
+  border-color: var(--danger);
+}
+
+#silent-toggle,
+#custom-handicap {
   width: 1.4rem;
   height: 1.4rem;
+  accent-color: var(--accent);
+}
+
+#custom-fields input[type='radio'] {
+  width: 1.2rem;
+  height: 1.2rem;
   accent-color: var(--accent);
 }
 

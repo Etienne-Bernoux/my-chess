@@ -120,6 +120,48 @@ test('R11 : le reset demande deux gestes, il n’est pas atteignable d’emblée
   await expect(page.locator('#reset-button')).toBeVisible()
 })
 
+test('R31, R32 : le panneau agrandi par la saisie manuelle reste utilisable', async ({ page }) => {
+  await page.locator('#menu-button').click()
+  await page.locator('#preset-select').selectOption('custom')
+  await expect(page.locator('#custom-fields')).toBeVisible()
+
+  // Handicap ouvert : c'est la variante la plus haute du panneau, et le cas où
+  // le projet `short-viewport` peut couper le bouton d'ouverture.
+  await page.locator('#custom-handicap').check()
+  await expect(page.locator('#custom-white')).toBeVisible()
+  await expect(page.locator('#custom-time-field')).toBeHidden()
+
+  // Piège de grille : la paire Blancs/Noirs est une grille à deux pistes, et une
+  // piste `1fr` gonfle à son min-content au lieu de rester dans son conteneur.
+  const overflowing = await page.evaluate(() => {
+    const panel = document.querySelector('.panel')!.getBoundingClientRect()
+    return [...document.querySelectorAll('#custom-fields *')]
+      .map((el) => ({ id: el.id || el.className, r: el.getBoundingClientRect() }))
+      .filter(({ r }) => r.width > 0)
+      .filter(({ r }) => r.left < panel.left - 1 || r.right > panel.right + 1)
+      .map(({ id }) => id)
+  })
+  expect(overflowing).toEqual([])
+
+  // Le bouton reste réellement actionnable : Playwright échoue ici si le
+  // panneau l'a repoussé hors de portée.
+  await page.locator('#custom-white').fill('7')
+  await page.locator('#custom-black').fill('4')
+  await page.locator('#reset-button').click()
+  await expect(page.locator('#overlay')).toBeHidden()
+
+  // Avant le tap, l'orientation n'est pas décidée : l'affichage prend le défaut.
+  await expect(page.locator('#clock-bottom')).toHaveText('7:00')
+  await expect(page.locator('#clock-top')).toHaveText('4:00')
+
+  // R8 : c'est ce tap qui attribue les deux temps. Taper le haut en fait la
+  // moitié des Blancs, et les deux temps s'échangent. Seul le camp à l'arrêt
+  // s'asserte à la valeur exacte — l'autre court pour de bon.
+  await page.locator('#half-top').tap()
+  await expect(page.locator('#clock-bottom')).toHaveText('4:00')
+  await expect(page.locator('#clock-top')).toHaveText(/^(7:00|6:5\d)$/)
+})
+
 test('avant toute partie, l’accueil ne propose ni reprise ni geste destructeur', async ({ page }) => {
   await page.locator('#menu-button').click()
   await expect(page.locator('#overlay')).toBeVisible()

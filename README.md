@@ -2,7 +2,7 @@
 
 Deux outils d'échecs pour mon usage, dans une seule application installée sur mon téléphone : une **pendule** posée à plat entre les joueurs, et un **répertoire d'ouvertures** qu'on travaille pour de vrai.
 
-> **Statut : pendule v1 implémentée** (exigences R1 à R30 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
+> **Statut : pendule v1 implémentée** (exigences R1 à R32 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
 
 ## Pourquoi
 
@@ -17,6 +17,8 @@ Téléphone posé **à plat sur la table**, entre les deux joueurs. L'écran est
 L'application s'ouvre sur un **écran d'accueil** : la cadence y est présélectionnée et confirmée avant qu'une partie ne parte sur la mauvaise, et une partie qu'on avait laissée en plan y est proposée à la reprise, temps écoulé pendant l'absence compris.
 
 Deux modes de cadence, et deux seulement : **Fischer** (temps initial + incrément, incrément nul compris — donc 5+0, 3+2, 5+3, 15+10) et **Bronstein**. Pas de multi-période, pas de délai américain, pas de byo-yomi : voir [`SPECS.md`](./SPECS.md) pour ce qui a été écarté et pourquoi.
+
+Au-delà des cadences fournies, une entrée **« Personnalisée… »** ouvre la saisie d'un temps, d'un incrément et d'un mode, et — derrière un interrupteur — d'un **temps distinct par camp** pour jouer à handicap. Les temps se règlent par couleur : c'est le premier tap qui décide de l'orientation des deux camps, et donc de qui reçoit lequel.
 
 À la chute du drapeau, la pendule **constate sans arbitrer** — elle marque le camp concerné et n'écrit aucun résultat. Une pendule ne voit pas l'échiquier, donc elle ne peut pas savoir si le mat était encore possible.
 

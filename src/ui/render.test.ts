@@ -5,6 +5,7 @@ import { CONFIRM_FLASH_MS, halfState, queryElements, render } from './render'
 import { fold } from '../domain/fold'
 import { newJournal, start, tap } from '../domain/commands'
 import { PRESETS } from '../presets/presets'
+import { CUSTOM_ID, DEFAULT_DRAFT } from '../presets/custom'
 import type { Elements, OverlayMode, UiModel } from './render'
 import type { Half, Journal, TimeControl } from '../domain/types'
 
@@ -31,6 +32,8 @@ const model = (journal: Journal, now: number, over: Partial<UiModel> = {}): UiMo
   canExport: false,
   presets: PRESETS,
   selectedPresetId: PRESETS[0]!.id,
+  custom: DEFAULT_DRAFT,
+  customError: null,
   resetArmed: false,
   note: '',
   ...over,
@@ -156,7 +159,59 @@ describe('render — écran de pause (R11)', () => {
       expect(el.presetSelect.disabled).toBe(false)
       expect(el.resetButton.hidden).toBe(false)
     }
-    expect(el.presetSelect.options.length).toBe(PRESETS.length)
+    // Les presets, plus l'entrée manuelle qui ferme toujours la liste.
+    expect(el.presetSelect.options.length).toBe(PRESETS.length + 1)
+    expect(el.presetSelect.options[PRESETS.length]!.value).toBe(CUSTOM_ID)
+  })
+
+  it('les champs manuels ne sont montés que sous l’entrée manuelle', () => {
+    const journal = newJournal(tc())
+
+    render(el, model(journal, START_AT, { overlay: 'home' }), START_AT)
+    expect(el.customFields.hidden).toBe(true)
+
+    render(el, model(journal, START_AT, { overlay: 'home', selectedPresetId: CUSTOM_ID }), START_AT)
+    expect(el.customFields.hidden).toBe(false)
+    expect(el.customMinutes.value).toBe(String(DEFAULT_DRAFT.minutes))
+    // Le handicap est décoché par défaut : le champ unique tient l'écran.
+    expect(el.customTimeField.hidden).toBe(false)
+    expect(el.customHandicapFields.hidden).toBe(true)
+  })
+
+  it('une saisie invalide barre l’ouverture d’une partie et prend le pas sur la note', () => {
+    const model_ = model(newJournal(tc()), START_AT, {
+      overlay: 'home',
+      selectedPresetId: CUSTOM_ID,
+      customError: 'Temps : un nombre entier de minutes est attendu.',
+      note: 'Journal copié dans le presse-papiers.',
+    })
+    render(el, model_, START_AT)
+
+    expect(el.resetButton.disabled).toBe(true)
+    expect(el.overlayNote.textContent).toMatch(/entier/)
+    expect(el.overlayNote.classList.contains('is-error')).toBe(true)
+  })
+
+  it('ne réécrit pas le champ que le doigt est en train de remplir', () => {
+    const model_ = model(newJournal(tc()), START_AT, {
+      overlay: 'home',
+      selectedPresetId: CUSTOM_ID,
+      custom: { ...DEFAULT_DRAFT, minutes: Number.NaN },
+    })
+    render(el, model_, START_AT)
+
+    // Champ vidé pour être retapé : le repeupler à la frame suivante le rendrait
+    // impossible à corriger.
+    el.customMinutes.value = '1'
+    el.customMinutes.focus()
+    render(el, model_, START_AT)
+    expect(el.customMinutes.value).toBe('1')
+
+    // Hors focus, l'affichage se réaligne — et une valeur invalide s'affiche
+    // vide plutôt qu'en « NaN ».
+    el.customMinutes.blur()
+    render(el, model_, START_AT)
+    expect(el.customMinutes.value).toBe('')
   })
 
   it('l’accueil ne propose la reprise que si une partie est en cours', () => {

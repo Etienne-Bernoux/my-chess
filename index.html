@@ -51,6 +51,83 @@
           <select id="preset-select"></select>
         </label>
 
+        <!-- Révélé par la seule entrée « Personnalisée… » du select ci-dessus :
+             l'accueil reste identique tant qu'on ne la choisit pas. -->
+        <div class="fields" id="custom-fields" hidden>
+          <label class="field" id="custom-time-field">
+            <span class="field-label">Temps (min)</span>
+            <input
+              class="number-input"
+              type="number"
+              id="custom-minutes"
+              inputmode="numeric"
+              min="1"
+              max="180"
+              step="1"
+            />
+          </label>
+
+          <label class="field field--row">
+            <input type="checkbox" id="custom-handicap" />
+            <span class="field-label">Handicap — un temps par camp</span>
+          </label>
+
+          <!-- R4 exposé. Cocher remplace le champ unique plutôt que de s'y
+               ajouter : deux temps affichés en même temps ne diraient pas
+               lequel s'applique. -->
+          <div class="field-pair" id="custom-handicap-fields" hidden>
+            <label class="field">
+              <span class="field-label">Blancs (min)</span>
+              <input
+                class="number-input"
+                type="number"
+                id="custom-white"
+                inputmode="numeric"
+                min="1"
+                max="180"
+                step="1"
+              />
+            </label>
+            <label class="field">
+              <span class="field-label">Noirs (min)</span>
+              <input
+                class="number-input"
+                type="number"
+                id="custom-black"
+                inputmode="numeric"
+                min="1"
+                max="180"
+                step="1"
+              />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label">Incrément (s)</span>
+            <input
+              class="number-input"
+              type="number"
+              id="custom-increment"
+              inputmode="numeric"
+              min="0"
+              max="180"
+              step="1"
+            />
+          </label>
+
+          <div class="field" role="radiogroup" aria-label="Mode de cadence">
+            <span class="field-label">Mode</span>
+            <label class="field--row">
+              <input type="radio" name="custom-mode" value="fischer" id="custom-mode-fischer" />
+              <span>Fischer</span>
+            </label>
+            <label class="field--row">
+              <input type="radio" name="custom-mode" value="bronstein" id="custom-mode-bronstein" />
+              <span>Bronstein</span>
+            </label>
+          </div>
+        </div>
+
         <label class="field field--row">
           <input type="checkbox" id="silent-toggle" />
           <span class="field-label">Mode silencieux</span>

@@ -8,13 +8,14 @@ import {
   clearJournal,
   isResumable,
   loadJournal,
-  loadLastPresetId,
+  loadLastTimeControl,
   loadSilent,
   memoryStore,
   saveJournal,
-  saveLastPresetId,
+  saveLastTimeControl,
   saveSilent,
 } from './store'
+import { presetById } from '../presets/presets'
 import type { Half, Journal, TimeControl } from '../domain/types'
 
 const START_AT = 1000
@@ -209,11 +210,33 @@ describe('browserStore — dégradation', () => {
 })
 
 describe('store — préférences', () => {
-  it('R30 : la dernière cadence est mémorisée', () => {
+  it('R30 : la dernière cadence est mémorisée entière, pas par référence', () => {
     const store = memoryStore()
-    expect(loadLastPresetId(store)).toBeNull()
-    saveLastPresetId(store, 'blitz-5-0-fischer')
-    expect(loadLastPresetId(store)).toBe('blitz-5-0-fischer')
+    expect(loadLastTimeControl(store)).toBeNull()
+
+    // Une cadence saisie à la main n'existe dans aucune liste : c'est elle, et
+    // pas un identifiant, que la mémorisation doit restituer.
+    const custom = tc({ id: 'custom', label: '5+3 · Noirs 3', initialMs: { white: 300_000, black: 180_000 }, incrementMs: 3_000 })
+    saveLastTimeControl(store, custom)
+    expect(loadLastTimeControl(store)).toEqual(custom)
+  })
+
+  it('R30 : le schéma précédent, qui ne stockait qu’un identifiant, est repris', () => {
+    const store = memoryStore({ 'mychess.lastPreset': 'blitz-5-0-fischer' })
+    expect(loadLastTimeControl(store)).toEqual(presetById('blitz-5-0-fischer'))
+  })
+
+  it('R30 : écrire la nouvelle clé retire l’ancienne, qui ne peut plus ressurgir', () => {
+    const store = memoryStore({ 'mychess.lastPreset': 'blitz-5-0-fischer' })
+    saveLastTimeControl(store, tc({ id: 'custom', label: '5+3' }))
+    expect(store.read('mychess.lastPreset')).toBeNull()
+  })
+
+  it('R30 : une préférence illisible est perdue, pas propagée', () => {
+    for (const corrupted of ['{', '{"id":"custom"}', 'null', '{"id":"c","label":"c","mode":"blitz","initialMs":{"white":1,"black":1},"incrementMs":0}']) {
+      const store = memoryStore({ 'mychess.lastTimeControl': corrupted })
+      expect(loadLastTimeControl(store)).toBeNull()
+    }
   })
 
   it('R15 : le mode silencieux survit à la fermeture, et vaut faux par défaut', () => {
