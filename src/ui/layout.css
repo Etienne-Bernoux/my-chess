@@ -107,7 +107,10 @@ body {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: currentcolor;
-  opacity: 0.55;
+  /* Assez effacé pour rester derrière les chiffres, assez présent pour se lire
+     sur la moitié EN ATTENTE — gris sombre sur fond sombre, et c'est justement
+     le joueur qui a le temps de le lire. Valeur à confirmer sur le téléphone. */
+  opacity: 0.75;
 }
 
 .side[hidden] {
