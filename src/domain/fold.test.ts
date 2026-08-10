@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fold } from './fold'
+import { parseJournal, serialize } from '../persistence/codec'
 import { otherHalf } from './types'
 import type { ClockEvent, Half, Journal, TimeControl } from './types'
 
@@ -341,5 +342,86 @@ describe('fold — journal incohérent (R27)', () => {
     const v = fold(withEvents(tc(), cases['deux démarrages']!), START_AT + 10_000)
     expect(v.whiteHalf).toBe(WHITE)
     expect(v.remaining[WHITE]).toBe(170_000)
+  })
+})
+
+describe('paliers de rappel (R33, R34)', () => {
+  /** Quarante secondes : le palier d'une minute est hors d'atteinte, R34 le désarme. */
+  const forty = tc({ initialMs: { white: 40_000, black: 40_000 }, incrementMs: 10_000 })
+
+  it('aucun palier n’est atteint tant que le premier seuil n’est pas franchi', () => {
+    const journal = withEvents(forty, [{ type: 'start', at: START_AT, whiteHalf: WHITE }])
+    const v = fold(journal, START_AT + 9_000) // 31 000 ms restantes
+    expect(v.alert[WHITE]).toBeNull()
+    expect(v.alert[BLACK]).toBeNull()
+  })
+
+  it('un palier franchi ne se relâche pas quand l’incrément fait remonter au-dessus', () => {
+    const journal = withEvents(forty, [
+      { type: 'start', at: START_AT, whiteHalf: WHITE },
+      // 25 s restantes au moment du tap, puis +10 s d'incrément : 35 s au tableau.
+      { type: 'tap', at: START_AT + 15_000, half: WHITE },
+    ])
+    const v = fold(journal, START_AT + 15_000)
+
+    expect(v.remaining[WHITE]).toBe(35_000)
+    // Le temps affiché est repassé au-dessus de trente secondes ; le palier, non.
+    expect(v.alert[WHITE]).toBe('half-minute')
+  })
+
+  it('R32 : le désarmement se juge par joueur, pas globalement', () => {
+    // Les Blancs partent d'une minute pile — leur palier « une minute » ne s'arme
+    // jamais — quand les Noirs partent de cinq minutes et gardent le leur.
+    const handicap = tc({ initialMs: { white: 60_000, black: 300_000 }, incrementMs: 0 })
+    const journal = withEvents(handicap, [
+      { type: 'start', at: START_AT, whiteHalf: WHITE },
+      { type: 'tap', at: START_AT + 1_000, half: WHITE },
+    ])
+
+    // Les Noirs descendent à 55 s : sous une minute, mais leur palier est armé.
+    const v = fold(journal, START_AT + 246_000)
+    expect(v.remaining[BLACK]).toBe(55_000)
+    expect(v.alert[BLACK]).toBe('minute')
+    // Les Blancs sont à 59 s, donc « sous une minute » eux aussi — et pourtant
+    // muets : le seuil vaut leur temps de départ, il ne dirait rien.
+    expect(v.remaining[WHITE]).toBe(59_000)
+    expect(v.alert[WHITE]).toBeNull()
+  })
+
+  it('un undo réarme le palier, sans qu’aucun état parallèle ait à être défait', () => {
+    const noIncrement = tc({ initialMs: { white: 40_000, black: 40_000 }, incrementMs: 0 })
+    const events: readonly ClockEvent[] = [
+      { type: 'start', at: START_AT, whiteHalf: WHITE },
+      { type: 'tap', at: START_AT + 5_000, half: WHITE },
+    ]
+    const now = START_AT + 20_000
+
+    // Les Noirs ont consommé 15 s sur leurs 40 : 25 s, palier franchi.
+    const played = fold(withEvents(noIncrement, events), now)
+    expect(played.alert[BLACK]).toBe('half-minute')
+
+    // Retirer le dernier tap rend le coup aux Blancs : les Noirs n'ont jamais
+    // joué, leur temps est intact, et leur palier repart de zéro.
+    const undone = fold(withEvents(noIncrement, events.slice(0, 1)), now)
+    expect(undone.remaining[BLACK]).toBe(40_000)
+    expect(undone.alert[BLACK]).toBeNull()
+    expect(undone.alert[WHITE]).toBe('half-minute')
+  })
+
+  it('le palier survit à une sérialisation : rien de plus n’est persisté', () => {
+    const journal = withEvents(forty, [
+      { type: 'start', at: START_AT, whiteHalf: WHITE },
+      { type: 'tap', at: START_AT + 15_000, half: WHITE },
+    ])
+    const now = START_AT + 15_000
+
+    const restored = parseJournal(JSON.parse(serialize(journal)))
+    expect(restored.ok).toBe(true)
+    if (!restored.ok) return
+
+    // R34 se dérive du journal seul : une reprise après fermeture retrouve le
+    // palier sans qu'il ait fallu l'écrire, ni migrer le schéma de sauvegarde.
+    expect(fold(restored.journal, now).alert).toEqual(fold(journal, now).alert)
+    expect(fold(restored.journal, now).alert[WHITE]).toBe('half-minute')
   })
 })

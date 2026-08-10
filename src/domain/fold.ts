@@ -1,5 +1,5 @@
-import { otherHalf } from './types'
-import type { ClockEvent, Half, IncrementMode, Journal, Phase, View } from './types'
+import { ALERT_LEVELS, otherHalf } from './types'
+import type { AlertLevelId, ClockEvent, Half, IncrementMode, Journal, Phase, View } from './types'
 
 /**
  * R3 : la formule de gain, unique pour les deux modes. Un incrément nul rend 0
@@ -13,6 +13,10 @@ type State = {
   started: boolean
   whiteHalf: Half
   remaining: Record<Half, number>
+  /** Temps initial de chaque moitié : c'est lui qui arme ou désarme un palier. */
+  initialFor: Record<Half, number>
+  /** Le plus bas jamais atteint par chaque moitié — la mémoire du latch (R34). */
+  lowest: Record<Half, number>
   running: Half | null
   pausedFrom: Half | null
   flagged: Half | null
@@ -27,10 +31,13 @@ const DEFAULT_WHITE_HALF: Half = 'bottom'
 function initial(journal: Journal): State {
   const { initialMs } = journal.timeControl
   const first = journal.events[0]
+  const times = assignInitial(DEFAULT_WHITE_HALF, initialMs.white, initialMs.black)
   return {
     started: false,
     whiteHalf: DEFAULT_WHITE_HALF,
-    remaining: assignInitial(DEFAULT_WHITE_HALF, initialMs.white, initialMs.black),
+    remaining: { ...times },
+    initialFor: { ...times },
+    lowest: { ...times },
     running: null,
     pausedFrom: null,
     flagged: null,
@@ -59,6 +66,9 @@ function advance(state: State, to: number): void {
   if (running !== null && dt > 0) {
     const consumed = Math.min(dt, state.remaining[running])
     state.remaining[running] -= consumed
+    // Le seul endroit où le temps baisse est donc le seul où un palier peut se
+    // franchir : la mémoire du latch se tient ici, et nulle part ailleurs.
+    state.lowest[running] = Math.min(state.lowest[running], state.remaining[running])
     // KTD5 : le temps du coup en cours s'accumule ici, donc il n'avance jamais
     // pendant une pause — c'est ce qui protège le gain Bronstein.
     state.elapsedThisMove += consumed
@@ -86,9 +96,14 @@ function apply(state: State, event: ClockEvent, journal: Journal): void {
     case 'start': {
       if (state.started) return
       const { initialMs } = journal.timeControl
+      const times = assignInitial(event.whiteHalf, initialMs.white, initialMs.black)
       state.started = true
       state.whiteHalf = event.whiteHalf
-      state.remaining = assignInitial(event.whiteHalf, initialMs.white, initialMs.black)
+      state.remaining = { ...times }
+      // R8 : l'orientation n'est connue qu'ici. Les deux temps initiaux changent
+      // donc de moitié au premier tap, et avec eux ce qui arme chaque palier.
+      state.initialFor = { ...times }
+      state.lowest = { ...times }
       state.running = event.whiteHalf
       state.elapsedThisMove = 0
       return
@@ -117,6 +132,25 @@ function apply(state: State, event: ClockEvent, journal: Journal): void {
       return
     }
   }
+}
+
+/**
+ * R34 : le palier atteint est le plus urgent dont le seuil a été franchi, lu sur
+ * le temps le plus bas jamais atteint. Un palier ne se relâche donc jamais —
+ * remonter au-dessus du seuil par l'incrément Fischer ne remet pas le cadran au
+ * calme, ce qui serait mentir sur la nature de la fin de partie qui s'annonce.
+ *
+ * Un palier au moins aussi haut que le temps initial de ce joueur ne s'arme
+ * jamais : Bullet 1+0 part à exactement soixante secondes, et le rappel « une
+ * minute » se déclencherait au premier tic. Le test est par moitié parce que R32
+ * autorise deux temps initiaux distincts.
+ */
+function alertReached(lowestMs: number, initialMs: number): AlertLevelId | null {
+  let reached: AlertLevelId | null = null
+  for (const level of ALERT_LEVELS) {
+    if (level.belowMs < initialMs && lowestMs < level.belowMs) reached = level.id
+  }
+  return reached
 }
 
 function phaseOf(state: State): Phase {
@@ -157,6 +191,10 @@ export function fold(journal: Journal, now: number): View {
     lastTapAt: state.lastTapAt,
     lastTapHalf: state.lastTapHalf,
     elapsedThisMove: state.elapsedThisMove,
+    alert: {
+      top: alertReached(state.lowest.top, state.initialFor.top),
+      bottom: alertReached(state.lowest.bottom, state.initialFor.bottom),
+    },
     mode: journal.timeControl.mode,
     incrementMs: journal.timeControl.incrementMs,
   }

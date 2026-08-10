@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "signatures": {
+    "minute": [
+      { "at": 0, "durationS": 0.1, "fromHz": 660, "toHz": 660, "type": "sine", "peak": 0.16 }
+    ],
+    "half-minute": [
+      { "at": 0, "durationS": 0.09, "fromHz": 990, "toHz": 990, "type": "triangle", "peak": 0.2 }
+    ],
+    "urgent": [
+      { "at": 0, "durationS": 0.07, "fromHz": 1320, "toHz": 1320, "type": "square", "peak": 0.22 },
+      { "at": 0.13, "durationS": 0.07, "fromHz": 1320, "toHz": 1320, "type": "square", "peak": 0.22 }
+    ],
+    "flag": [
+      { "at": 0, "durationS": 0.55, "fromHz": 420, "toHz": 130, "type": "triangle", "peak": 0.32 }
+    ]
+  }
+}

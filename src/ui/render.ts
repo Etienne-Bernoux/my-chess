@@ -1,5 +1,5 @@
 import { TENTHS_BELOW_MS, formatRemaining } from './format'
-import { URGENT_BELOW_MS } from '../domain/types'
+import { ALERT_LEVELS } from '../domain/types'
 import { CUSTOM_ID } from '../presets/custom'
 import type { CustomDraft } from '../presets/custom'
 import type { Half, TimeControl, View } from '../domain/types'
@@ -116,11 +116,24 @@ export const isConfirming = (view: View, half: Half, now: number): boolean =>
   now - view.lastTapAt >= 0 &&
   now - view.lastTapAt < CONFIRM_FLASH_MS
 
+/**
+ * R33 : la classe du palier se déduit du catalogue, elle n'est pas énumérée ici.
+ * L'ordre compte — à spécificité égale, c'est la dernière règle de la feuille qui
+ * gagne, et les paliers doivent l'emporter sur `is-running`.
+ */
+export const HALF_STATE_CLASSES: readonly string[] = [
+  'is-running',
+  ...ALERT_LEVELS.map((level) => `is-alert-${level.id}`),
+  'is-flagged',
+  'is-confirming',
+]
+
 export function halfState(view: View, half: Half, now: number): readonly string[] {
   if (view.flagged === half) return ['is-flagged']
   if (isConfirming(view, half, now)) return ['is-confirming']
   if (view.running !== half) return []
-  return view.remaining[half] < URGENT_BELOW_MS ? ['is-running', 'is-urgent'] : ['is-running']
+  const alert = view.alert[half]
+  return alert === null ? ['is-running'] : ['is-running', `is-alert-${alert}`]
 }
 
 /**
@@ -224,7 +237,7 @@ export function render(el: Elements, model: UiModel, now: number): void {
 
   for (const half of ['top', 'bottom'] as const) {
     const states = halfState(view, half, now)
-    for (const name of ['is-running', 'is-urgent', 'is-flagged', 'is-confirming']) {
+    for (const name of HALF_STATE_CLASSES) {
       toggleClass(el.halves[half], name, states.includes(name))
     }
 

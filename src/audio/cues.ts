@@ -1,8 +1,9 @@
-import { URGENT_BELOW_MS } from '../domain/types'
-import type { Half, View } from '../domain/types'
+import { SIGNATURES } from './signatures'
+import { ALERT_LEVELS } from '../domain/types'
+import type { Cue } from './signatures'
+import type { AlertLevelId, Half, View } from '../domain/types'
 
-/** R13 : deux signatures sonores distinctes, pas deux variantes du même bip. */
-export type Cue = 'urgent' | 'flag'
+export type { Cue } from './signatures'
 
 export interface AudioSink {
   /** R14 : l'API exige un geste utilisateur pour démarrer l'audio. */
@@ -10,17 +11,21 @@ export interface AudioSink {
   play(cue: Cue): void
 }
 
+const HALVES: readonly Half[] = ['top', 'bottom']
+
 /**
  * KTD7 : la transition entre la vue précédente et la vue courante est le seul
  * déclencheur. Aucun `setTimeout` audio à armer, donc rien à annuler sur un
  * undo, une pause ou une reprise — la cohérence est gratuite.
  *
- * Le franchissement du seuil compte même s'il a eu lieu « dans le passé »,
- * pendant que l'application était en arrière-plan : la comparaison porte sur
- * deux vues, pas sur l'écoulement réel du temps.
+ * Le franchissement compte même s'il a eu lieu « dans le passé », pendant que
+ * l'application était en arrière-plan : la comparaison porte sur deux vues, pas
+ * sur l'écoulement réel du temps.
+ *
+ * Les DEUX moitiés sont examinées, pas seulement celle qui tourne : quand le
+ * franchissement tombe dans la même frame que le tap, la moitié concernée vient
+ * de s'arrêter.
  */
-const HALVES: readonly Half[] = ['top', 'bottom']
-
 export function cueForTransition(previous: View | null, current: View): Cue | null {
   if (previous === null) return null
 
@@ -28,41 +33,28 @@ export function cueForTransition(previous: View | null, current: View): Cue | nu
   // transition ne doit pas produire aussi le signal des dix secondes.
   if (previous.flagged === null && current.flagged !== null) return 'flag'
 
-  // Les DEUX moitiés sont examinées, pas seulement celle qui tourne : quand le
-  // franchissement tombe dans la même frame que le tap, la moitié concernée
-  // vient de s'arrêter, et ne regarder que le trait perdrait le signal pour
-  // toujours — sous le seuil, la condition ne redeviendrait jamais vraie.
-  return HALVES.some(
-    (half) =>
-      previous.remaining[half] >= URGENT_BELOW_MS && current.remaining[half] < URGENT_BELOW_MS,
-  )
-    ? 'urgent'
-    : null
+  const crossed = HALVES.map((half) => changedTo(previous, current, half))
+
+  // Le plus urgent parle, et lui seul. Un retour d'arrière-plan de vingt minutes
+  // franchit les trois paliers d'un coup : trois bips empilés diraient moins que
+  // le seul qui compte. R34 rend l'ordre suffisant — un palier ne se relâchant
+  // jamais, il n'est franchi qu'une fois par partie.
+  let cue: AlertLevelId | null = null
+  for (const level of ALERT_LEVELS) {
+    if (crossed.includes(level.id)) cue = level.id
+  }
+  return cue
+}
+
+const changedTo = (previous: View, current: View, half: Half): AlertLevelId | null => {
+  const reached = current.alert[half]
+  return reached !== null && reached !== previous.alert[half] ? reached : null
 }
 
 /** Sink neutre : mode silencieux (R15), environnement sans Web Audio, tests. */
 export const silentSink: AudioSink = {
   arm: () => {},
   play: () => {},
-}
-
-type ToneSpec = {
-  readonly at: number
-  readonly durationS: number
-  readonly fromHz: number
-  readonly toHz: number
-  readonly type: OscillatorType
-  readonly peak: number
-}
-
-// Deux timbres franchement différents : un doublet bref et haut pour l'entrée
-// dans les dix dernières secondes, un son grave et descendant pour la chute.
-const SIGNATURES: Record<Cue, readonly ToneSpec[]> = {
-  urgent: [
-    { at: 0, durationS: 0.07, fromHz: 1_320, toHz: 1_320, type: 'square', peak: 0.22 },
-    { at: 0.13, durationS: 0.07, fromHz: 1_320, toHz: 1_320, type: 'square', peak: 0.22 },
-  ],
-  flag: [{ at: 0, durationS: 0.55, fromHz: 420, toHz: 130, type: 'triangle', peak: 0.32 }],
 }
 
 export function createWebAudioCues(
