@@ -58,7 +58,15 @@ test.beforeEach(async ({ page }) => {
 test('R8 : le premier tap lance l’adversaire et le contraste bascule', async ({ page }) => {
   const avant = await background(page, 'bottom')
 
+  // R36 : tant que le tap n'a pas décidé de l'orientation, aucun camp n'est écrit.
+  await expect(page.locator('#side-bottom')).toBeHidden()
+  await expect(page.locator('#side-top')).toBeHidden()
+
   await tapHalf(page, 'bottom')
+
+  // R36 : le camp est écrit sur chaque moitié, et suit ce que le tap a décidé.
+  await expect(page.locator('#side-bottom')).toHaveText('Blancs')
+  await expect(page.locator('#side-top')).toHaveText('Noirs')
 
   // La moitié tapée devient celle des Blancs et part : son fond change.
   await expect

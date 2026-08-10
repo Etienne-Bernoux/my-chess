@@ -44,6 +44,12 @@ R7. **Pendant la partie, chaque joueur tape sa propre moitié** après avoir jou
 
 R8. **Le démarrage est l'exception :** les Noirs lancent la pendule en tapant la moitié située du côté de leur adversaire, comme sur une pendule physique. L'orientation des deux camps se déduit de ce premier tap — aucun écran ne demande qui est Blanc.
 
+R36. Une fois le premier tap passé, **chaque moitié porte le nom de son camp** — Blancs ou Noirs. R8 n'est pas amendé : l'orientation se déduit toujours de ce seul tap, et l'application se contente d'écrire ce qu'il a décidé. Avant le tap, rien n'est affiché — il n'y a rien à dire, et surtout rien à deviner.
+
+  C'est ce qui rend l'échange des deux temps lisible en handicap (R32). Sans repère, régler cinq minutes pour les Blancs et trois pour les Noirs puis voir les deux valeurs se croiser au premier tap se lit comme une erreur de l'application. C'était une question laissée à l'usage ; elle se règle par un mot, sans écran ni geste supplémentaire.
+
+  Le repère est posé **hors du flux** : il ne décale pas le cadran et n'ajoute pas de hauteur, sans quoi la grille déborderait sur un écran court. Il suit la rotation de sa moitié (R5), donc se lit à l'endroit depuis la place de son joueur, et ne vole aucun tap (R6).
+
 R9. Un tap sur la moitié du joueur qui n'est pas au trait n'a **aucun effet**. Seul le joueur dont le temps s'écoule peut rendre la main.
 
 R9b. Un tap est également sans effet si le joueur au trait n'a **pas encore consommé un minimum de temps** sur son coup. Le téléphone est posé à plat : une paume qui roule d'une moitié à l'autre produit deux contacts valides, et le second offrirait à l'adversaire l'incrément d'un coup qu'il n'a pas joué.
@@ -227,7 +233,7 @@ Le partage est délibéré, et il découle de ce qui est réellement vérifiable
 
 **Vérifié à la main sur le téléphone.** Toute l'ergonomie. Un audit mobile nomme les éléments cassés — il ne rend pas un booléen, et `scrollWidth <= innerWidth` ne prouve rien puisque `overflow-x: hidden` le masque. À contrôler explicitement : les deux moitiés sont atteignables et pivotées correctement, la bande centrale ne vole aucun tap, la confirmation visuelle de R12 est perceptible sans fixer l'écran, l'écran d'accueil ne coûte pas un geste de trop avant chaque partie, et l'abandon d'une partie en cours demande bien un second appui qui se voit (R11b).
 
-Pour la saisie manuelle (R31, R32) : la révélation des champs ne pousse pas le bouton hors de l'écran, le clavier numérique ne masque pas le champ en cours de remplissage, et l'échange des deux temps au premier tap — inévitable puisque l'orientation n'est décidée qu'à cet instant — ne fait pas croire à une erreur.
+Pour la saisie manuelle (R31, R32) : la révélation des champs ne pousse pas le bouton hors de l'écran, le clavier numérique ne masque pas le champ en cours de remplissage, et l'échange des deux temps au premier tap — inévitable puisque l'orientation n'est décidée qu'à cet instant — ne fait pas croire à une erreur, ce à quoi le repère de camp (R36) doit suffire. À contrôler pour lui : il se lit sans effort dans tous les états de la moitié, flash de confirmation et drapeau tombé compris, et ne concurrence jamais les chiffres.
 
 Pour les paliers (R33, R34) : les trois fonds se distinguent l'un de l'autre à un mètre et sans les avoir appris, aucun ne se confond avec le carmin de la chute (R17), et la tonalité de chaque palier s'entend par-dessus le bruit d'une salle de club. Les trois seuils et les trois couleurs sont des valeurs jugées au doigt et à l'oreille : elles se confirment en jouant, pas en les relisant.
 
@@ -239,7 +245,7 @@ Un vrai rechargement se prouve en redémarrant le serveur de développement, pas
 
 ## Découpage
 
-**v1 — pendule utilisable en club.** R1 à R35. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
+**v1 — pendule utilisable en club.** R1 à R36. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
 
 **v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : cadences nommées enregistrables, granularité de saisie sous la minute si R31 se révèle trop grossière à l'usage.
 
