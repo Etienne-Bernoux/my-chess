@@ -40,6 +40,7 @@ export type UiModel = {
 export type Elements = {
   readonly halves: Readonly<Record<Half, HTMLElement>>
   readonly clocks: Readonly<Record<Half, HTMLElement>>
+  readonly sides: Readonly<Record<Half, HTMLElement>>
   readonly undoButton: HTMLButtonElement
   readonly menuButton: HTMLButtonElement
   readonly overlay: HTMLElement
@@ -78,6 +79,10 @@ export function queryElements(root: ParentNode = document): Elements {
     clocks: {
       top: required(root, 'clock-top'),
       bottom: required(root, 'clock-bottom'),
+    },
+    sides: {
+      top: required(root, 'side-top'),
+      bottom: required(root, 'side-bottom'),
     },
     undoButton: required<HTMLButtonElement>(root, 'undo-button'),
     menuButton: required<HTMLButtonElement>(root, 'menu-button'),
@@ -135,6 +140,16 @@ export function halfState(view: View, half: Half, now: number): readonly string[
   const alert = view.alert[half]
   return alert === null ? ['is-running'] : ['is-running', `is-alert-${alert}`]
 }
+
+/**
+ * R36 : quel camp occupe cette moitié. R8 reste intact — l'orientation se déduit
+ * du premier tap et de rien d'autre ; l'application se contente de dire ce qu'il
+ * a décidé. C'est ce qui rend l'échange des deux temps lisible en handicap
+ * (R32) : sans lui, les deux valeurs se croisent au premier tap et se lisent
+ * comme une erreur de l'application.
+ */
+export const sideLabel = (view: View, half: Half): string | null =>
+  view.whiteHalf === null ? null : half === view.whiteHalf ? 'Blancs' : 'Noirs'
 
 /**
  * Une partie est reprenable tant qu'elle a commencé sans être close. C'est la
@@ -239,6 +254,14 @@ export function render(el: Elements, model: UiModel, now: number): void {
     const states = halfState(view, half, now)
     for (const name of HALF_STATE_CLASSES) {
       toggleClass(el.halves[half], name, states.includes(name))
+    }
+
+    // R36 : le camp n'existe qu'une fois l'orientation décidée par le premier
+    // tap (R8). Avant, il n'y a rien à dire — et surtout rien à deviner.
+    const side = sideLabel(view, half)
+    el.sides[half].hidden = side === null
+    if (side !== null && el.sides[half].textContent !== side) {
+      el.sides[half].textContent = side
     }
 
     const text = formatRemaining(view.remaining[half])

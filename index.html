@@ -21,6 +21,8 @@
     -->
     <main id="app">
       <button type="button" class="half" id="half-top" aria-label="Moitié haute">
+        <!-- R36 : le camp est écrit une fois le premier tap passé, jamais avant. -->
+        <span class="side" id="side-top" hidden></span>
         <span class="clock" id="clock-top">0:00</span>
       </button>
 
@@ -36,6 +38,7 @@
       </div>
 
       <button type="button" class="half" id="half-bottom" aria-label="Moitié basse">
+        <span class="side" id="side-bottom" hidden></span>
         <span class="clock" id="clock-bottom">0:00</span>
       </button>
     </main>

@@ -130,6 +130,46 @@ describe('render — états des moitiés', () => {
     expect(el.clocks[WHITE].textContent).toBe('9.0')
   })
 
+  it('R36 : avant le premier tap, aucun camp n’est écrit', () => {
+    const journal = newJournal(tc())
+    render(el, model(journal, START_AT), START_AT)
+    expect(el.sides[WHITE].hidden).toBe(true)
+    expect(el.sides[BLACK].hidden).toBe(true)
+  })
+
+  it('R36 : le premier tap écrit les deux camps, et l’orientation le suit', () => {
+    // R8 : les Noirs tapent la moitié de leur adversaire, qui devient celle des
+    // Blancs. Inverser le tap doit inverser les deux libellés — sans quoi le
+    // repère serait décoratif et mentirait une fois sur deux.
+    const white = start(newJournal(tc()), START_AT, WHITE)!
+    render(el, model(white, START_AT), START_AT)
+    expect(el.sides[WHITE].hidden).toBe(false)
+    expect(el.sides[WHITE].textContent).toBe('Blancs')
+    expect(el.sides[BLACK].textContent).toBe('Noirs')
+
+    document.body.innerHTML = BODY
+    el = queryElements()
+
+    const flipped = start(newJournal(tc()), START_AT, BLACK)!
+    render(el, model(flipped, START_AT), START_AT)
+    expect(el.sides[BLACK].textContent).toBe('Blancs')
+    expect(el.sides[WHITE].textContent).toBe('Noirs')
+  })
+
+  it('R32, R36 : le camp dit à qui va lequel des deux temps du handicap', () => {
+    // Sans le repère, régler cinq minutes pour les Blancs et trois pour les Noirs
+    // puis voir les deux valeurs se croiser au premier tap se lit comme une
+    // erreur de l'application. Le libellé est ce qui l'explique.
+    const handicap = tc({ initialMs: { white: 300_000, black: 180_000 } })
+    const journal = start(newJournal(handicap), START_AT, BLACK)!
+    render(el, model(journal, START_AT), START_AT)
+
+    expect(el.sides[BLACK].textContent).toBe('Blancs')
+    expect(el.clocks[BLACK].textContent).toBe('5:00')
+    expect(el.sides[WHITE].textContent).toBe('Noirs')
+    expect(el.clocks[WHITE].textContent).toBe('3:00')
+  })
+
   it('R17 et R18 : la moitié au drapeau est marquée, et rien n’attribue de résultat', () => {
     const journal = start(newJournal(tc({ initialMs: { white: 5_000, black: 180_000 } })), START_AT, WHITE)!
     const at = START_AT + 9_000
