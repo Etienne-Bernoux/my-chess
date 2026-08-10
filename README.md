@@ -2,7 +2,7 @@
 
 Deux outils d'échecs pour mon usage, dans une seule application installée sur mon téléphone : une **pendule** posée à plat entre les joueurs, et un **répertoire d'ouvertures** qu'on travaille pour de vrai.
 
-> **Statut : pendule v1 implémentée** (exigences R1 à R32 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
+> **Statut : pendule v1 implémentée** (exigences R1 à R35 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
 
 ## Pourquoi
 
@@ -19,6 +19,8 @@ L'application s'ouvre sur un **écran d'accueil** : la cadence y est présélect
 Deux modes de cadence, et deux seulement : **Fischer** (temps initial + incrément, incrément nul compris — donc 5+0, 3+2, 5+3, 15+10) et **Bronstein**. Pas de multi-période, pas de délai américain, pas de byo-yomi : voir [`SPECS.md`](./SPECS.md) pour ce qui a été écarté et pourquoi.
 
 Au-delà des cadences fournies, une entrée **« Personnalisée… »** ouvre la saisie d'un temps, d'un incrément et d'un mode, et — derrière un interrupteur — d'un **temps distinct par camp** pour jouer à handicap. Les temps se règlent par couleur : c'est le premier tap qui décide de l'orientation des deux camps, et donc de qui reçoit lequel.
+
+Le temps restant est rappelé à **trois paliers** — une minute, trente secondes, dix secondes : le fond de la moitié se colore et un signal sonore part, d'une tonalité plus haute à chaque palier. Un palier atteint ne se relâche plus, même si l'incrément fait repasser au-dessus du seuil, et un palier plus haut que le temps de départ ne s'arme jamais. Les sons se règlent dans [`src/audio/sounds.json`](./src/audio/sounds.json), à la main, sans écran de réglages.
 
 À la chute du drapeau, la pendule **constate sans arbitrer** — elle marque le camp concerné et n'écrit aucun résultat. Une pendule ne voit pas l'échiquier, donc elle ne peut pas savoir si le mat était encore possible.
 
@@ -64,6 +66,8 @@ Les icônes sont générées une fois par `node scripts/generate-icons.mjs` et v
 | `src/domain/clock.ts` | L'interface `Clock` injectée, et le seul `Date.now()` du projet |
 | `src/persistence/` | Codec pur, adaptateur de stockage, journaux exportés rejouables en test |
 | `src/ui/` | Disposition, rendu idempotent, formatage |
+| `src/presets/time-controls.json` | Les cadences fournies, éditables à la main |
+| `src/audio/sounds.json` | Les signatures sonores des paliers et de la chute, éditables à la main |
 | `src/app.ts` | Racine de composition : horloge, stockage, audio et wake lock y sont injectés |
 
 ## Documentation

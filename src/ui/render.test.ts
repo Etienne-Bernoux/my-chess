@@ -118,11 +118,15 @@ describe('render — états des moitiés', () => {
     expect(el.halves[WHITE].classList.contains('is-confirming')).toBe(false)
   })
 
-  it('sous dix secondes, la moitié au trait passe en urgence', () => {
+  it('sous dix secondes, la moitié au trait passe au palier le plus urgent', () => {
     const journal = start(newJournal(tc({ initialMs: { white: 12_000, black: 180_000 } })), START_AT, WHITE)!
     const at = START_AT + 3_000
     render(el, model(journal, at), at)
-    expect(el.halves[WHITE].classList.contains('is-urgent')).toBe(true)
+    expect(el.halves[WHITE].classList.contains('is-alert-urgent')).toBe(true)
+    // R34 : partir de douze secondes désarme les deux paliers supérieurs, qui
+    // seraient atteints avant même que le premier coup soit joué.
+    expect(el.halves[WHITE].classList.contains('is-alert-minute')).toBe(false)
+    expect(el.halves[WHITE].classList.contains('is-alert-half-minute')).toBe(false)
     expect(el.clocks[WHITE].textContent).toBe('9.0')
   })
 

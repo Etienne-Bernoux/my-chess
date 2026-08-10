@@ -129,6 +129,65 @@ describe('cueForTransition — chute du drapeau (R13, R17)', () => {
   })
 })
 
+describe('cueForTransition — les trois paliers (R33, R34)', () => {
+  /** Quatre-vingt-dix secondes : les trois paliers sont armés. */
+  const long = (): Journal =>
+    start(
+      newJournal(tc({ initialMs: { white: 90_000, black: 180_000 }, incrementMs: 0 })),
+      START_AT,
+      WHITE,
+    )!
+
+  it('chaque palier parle une fois, et une seule', () => {
+    const j = long()
+    const signals: (string | null)[] = []
+    let previous = at(j, START_AT)
+
+    for (const elapsed of [30_001, 45_000, 60_001, 75_000, 80_001, 85_000]) {
+      const current = at(j, START_AT + elapsed)
+      signals.push(cueForTransition(previous, current))
+      previous = current
+    }
+
+    expect(signals).toEqual(['minute', null, 'half-minute', null, 'urgent', null])
+  })
+
+  it('plusieurs paliers franchis en une seule transition ne produisent que le plus urgent', () => {
+    // Retour d'arrière-plan : les trois seuils sont derrière nous d'un coup. Trois
+    // bips empilés diraient moins que le seul qui compte.
+    const j = long()
+    const before = at(j, START_AT)
+    const after = at(j, START_AT + 85_000)
+
+    expect(after.alert.bottom).toBe('urgent')
+    expect(cueForTransition(before, after)).toBe('urgent')
+  })
+
+  it('l’incrément qui fait remonter au-dessus du seuil ne rejoue pas le palier', () => {
+    const j = start(
+      newJournal(tc({ initialMs: { white: 40_000, black: 180_000 }, incrementMs: 10_000 })),
+      START_AT,
+      WHITE,
+    )!
+
+    const crossed = at(j, START_AT + 10_001) // 29 999 ms : le palier tombe
+    expect(cueForTransition(at(j, START_AT + 9_999), crossed)).toBe('half-minute')
+
+    // 25 s au tap, plus dix d'incrément : 35 s au tableau, au-dessus du seuil.
+    const handedOver = tap(j, START_AT + 15_000, WHITE)!
+    const above = at(handedOver, START_AT + 15_000)
+    expect(above.remaining[WHITE]).toBe(35_000)
+    expect(cueForTransition(crossed, above)).toBeNull()
+
+    // Les Blancs reprennent la main et repassent sous trente secondes : le palier
+    // a déjà parlé pour cette partie, il ne parle pas deux fois.
+    const back = tap(handedOver, START_AT + 16_000, 'top')!
+    const under = at(back, START_AT + 21_001)
+    expect(under.remaining[WHITE]).toBeLessThan(30_000)
+    expect(cueForTransition(at(back, START_AT + 20_999), under)).toBeNull()
+  })
+})
+
 describe('createWebAudioCues', () => {
   it('ne crée le contexte qu’au premier armement, et une seule fois (R14)', () => {
     let created = 0

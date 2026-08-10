@@ -7,8 +7,17 @@
   --half-idle-fg: #4e4e59;
   --half-active-bg: #f1f1f4;
   --half-active-fg: #0d0d12;
-  --half-urgent-bg: #f2b134;
-  --half-urgent-fg: #241800;
+  /* R33 : un jeu de couleurs par palier, du rappel au dernier avertissement.
+     L'ambre est celui qui existait pour les dix dernières secondes ; il recule
+     d'un cran, là où il ne dit encore qu'« attention ». */
+  --half-alert-minute-bg: #f2b134;
+  --half-alert-minute-fg: #241800;
+  --half-alert-half-minute-bg: #e2721f;
+  --half-alert-half-minute-fg: #200c00;
+  /* Rouge-orangé vif, et non le carmin de la chute : les deux ne doivent pas se
+     confondre à un mètre de distance, R17 veut la chute non ambiguë. */
+  --half-alert-urgent-bg: #ff5a36;
+  --half-alert-urgent-fg: #2a0700;
   --half-flagged-bg: #b81f2d;
   --half-flagged-fg: #fff0f0;
   --half-confirm-bg: #2f9e63;
@@ -97,9 +106,23 @@ body {
   color: var(--half-active-fg);
 }
 
-.half.is-urgent {
-  background: var(--half-urgent-bg);
-  color: var(--half-urgent-fg);
+/* R33, R34 : les paliers, du moins urgent au plus urgent. Placés après
+   `is-running` — les deux classes coexistent, et à spécificité égale c'est la
+   dernière déclarée qui l'emporte. Un palier atteint ne se relâche pas : le fond
+   ne redevient pas clair même si l'incrément fait remonter au-dessus du seuil. */
+.half.is-alert-minute {
+  background: var(--half-alert-minute-bg);
+  color: var(--half-alert-minute-fg);
+}
+
+.half.is-alert-half-minute {
+  background: var(--half-alert-half-minute-bg);
+  color: var(--half-alert-half-minute-fg);
+}
+
+.half.is-alert-urgent {
+  background: var(--half-alert-urgent-bg);
+  color: var(--half-alert-urgent-fg);
 }
 
 /* R17 : la moitié dont le drapeau est tombé est marquée sans ambiguïté. */

@@ -7,12 +7,27 @@ export type Half = 'top' | 'bottom'
 
 export type IncrementMode = 'fischer' | 'bronstein'
 
+export type AlertLevelId = 'minute' | 'half-minute' | 'urgent'
+
+export type AlertLevel = {
+  readonly id: AlertLevelId
+  readonly belowMs: number
+}
+
 /**
- * Seuil des dix dernières secondes. Il vit dans le domaine parce que deux
- * couches indépendantes en dépendent — la signature sonore (R13) et la bascule
- * visuelle — et qu'elles doivent franchir le même seuil au même instant.
+ * R33 : les paliers de rappel, du moins urgent au plus urgent. Ils vivent dans
+ * le domaine parce que deux couches indépendantes en dépendent — la signature
+ * sonore (R13) et la bascule visuelle — et qu'elles doivent franchir le même
+ * seuil au même instant.
+ *
+ * C'est un catalogue et non une suite de conditions : un palier est une donnée,
+ * jamais une branche de plus dans le rendu et une autre dans l'audio.
  */
-export const URGENT_BELOW_MS = 10_000
+export const ALERT_LEVELS: readonly AlertLevel[] = [
+  { id: 'minute', belowMs: 60_000 },
+  { id: 'half-minute', belowMs: 30_000 },
+  { id: 'urgent', belowMs: 10_000 },
+]
 
 /**
  * Durée minimale réellement consommée pour qu'un tap compte comme la fin d'un
@@ -80,6 +95,13 @@ export type View = {
   readonly lastTapAt: number | null
   readonly lastTapHalf: Half | null
   readonly elapsedThisMove: number
+  /**
+   * R34 : le palier de rappel atteint par chaque moitié, ou `null`. Il se lit
+   * sur le temps le plus bas jamais atteint et non sur le temps courant — un
+   * palier franchi ne se relâche jamais, même quand l'incrément fait remonter
+   * au-dessus du seuil.
+   */
+  readonly alert: Readonly<Record<Half, AlertLevelId | null>>
   readonly mode: IncrementMode
   readonly incrementMs: number
 }

@@ -66,7 +66,19 @@ R12. Au moment du tap, la confirmation prioritaire va **au joueur qui vient de j
 
   Ce qui est traité ici est le **faux négatif** — le tap qui n'a pas pris, alors que la main est déjà repartie vers les pièces. Tout le prior art traite le faux positif (le tap accidentel) et laisse celui-ci de côté.
 
-R13. Des signatures **sonores distinctes** marquent les transitions d'état : entrée dans les dix dernières secondes, et chute du drapeau.
+R13. Des signatures **sonores distinctes** marquent les transitions d'état : chaque palier de rappel (R33) et la chute du drapeau. Les paliers se distinguent par une **tonalité qui monte** d'un palier au suivant, jamais par des timbres sans rapport : reconnaître quatre sons à l'oreille en pleine partie serait un apprentissage qu'une pendule n'a pas à exiger, alors qu'une hauteur qui monte se comprend sans avoir jamais été expliquée.
+
+R33. Le temps restant est rappelé à **trois paliers** — une minute, trente secondes, dix secondes — sur **deux canaux à la fois**, une couleur de fond et un signal sonore. Le visuel est le porteur principal : R15 coupe tous les sons, et le mode silencieux est l'état normal en club. Dix secondes seules prévenaient trop tard pour changer quoi que ce soit à sa façon de jouer.
+
+  Les paliers sont un **catalogue**, pas une suite de conditions. Un palier est une donnée — un seuil et un nom — et le rendu comme l'audio le consomment ; en ajouter un ne doit pas ajouter une branche ici et une autre là.
+
+R34. Un palier atteint **ne se relâche jamais** avant la fin de la partie. En Fischer, l'incrément fait régulièrement repasser au-dessus d'un seuil qu'on vient de franchir : le cadran ne redevient pas calme pour autant, et le son ne rejoue pas. Conséquence assumée : un cadran peut afficher plus d'une minute sur le fond d'un palier plus bas. Il dit alors la vérité sur la fin de partie qui s'annonce, pas sur l'instant.
+
+  Un palier **ne s'arme pas** s'il est supérieur ou égal au temps initial **de ce joueur**. Une cadence d'une minute franchirait le palier « une minute » au premier tic sans rien apprendre à personne. Le test est par joueur, jamais global : R32 autorise deux temps initiaux distincts.
+
+  Le palier atteint est **dérivé du journal** (R19, R20) comme tout le reste, et n'est écrit nulle part. C'est ce qui fait qu'un undo le réarme et qu'une reprise après fermeture le retrouve, sans code dédié ni migration du format de sauvegarde.
+
+R35. Les signatures sonores vivent dans un **fichier JSON versionné**, éditable à la main — hauteur, durée, timbre, enveloppe de chaque ton. Même doctrine que R29 pour les cadences : c'est une donnée source, pas un écran de réglages. Un bip se juge à l'oreille, dans la salle où l'on joue, et l'ajuster ne doit pas coûter un menu de plus sur l'écran d'accueil ni une préférence de plus à persister.
 
 R14. L'audio est **pré-armé au premier geste utilisateur** (le tap de démarrage suffit — l'API l'exige).
 
@@ -217,6 +229,8 @@ Le partage est délibéré, et il découle de ce qui est réellement vérifiable
 
 Pour la saisie manuelle (R31, R32) : la révélation des champs ne pousse pas le bouton hors de l'écran, le clavier numérique ne masque pas le champ en cours de remplissage, et l'échange des deux temps au premier tap — inévitable puisque l'orientation n'est décidée qu'à cet instant — ne fait pas croire à une erreur.
 
+Pour les paliers (R33, R34) : les trois fonds se distinguent l'un de l'autre à un mètre et sans les avoir appris, aucun ne se confond avec le carmin de la chute (R17), et la tonalité de chaque palier s'entend par-dessus le bruit d'une salle de club. Les trois seuils et les trois couleurs sont des valeurs jugées au doigt et à l'oreille : elles se confirment en jouant, pas en les relisant.
+
 **Les deux chemins**, chaque fois qu'ils existent : partie jouée en direct **et** reprise après interruption.
 
 Un vrai rechargement se prouve en redémarrant le serveur de développement, pas avec un `location.reload()` piloté à distance.
@@ -225,7 +239,7 @@ Un vrai rechargement se prouve en redémarrant le serveur de développement, pas
 
 ## Découpage
 
-**v1 — pendule utilisable en club.** R1 à R32. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
+**v1 — pendule utilisable en club.** R1 à R35. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
 
 **v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : cadences nommées enregistrables, granularité de saisie sous la minute si R31 se révèle trop grossière à l'usage.
 

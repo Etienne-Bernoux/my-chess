@@ -365,27 +365,34 @@ describe('retours sonores (R13, R14, R15)', () => {
     expect(audio.played).toEqual([])
   })
 
-  it('le seuil des dix secondes puis la chute produisent deux signaux distincts', () => {
+  it('R33, R34 : chaque palier puis la chute produisent un signal distinct, et le palier d’une minute reste désarmé en bullet', () => {
+    // Bullet 1+0 part à une minute pile : R34 désarme le palier « une minute »,
+    // qui se déclencherait au premier tic sans rien apprendre à personne.
     shortGame()
     press('half-bottom')
 
-    clock.set(START_AT + 50_000) // 10 s restantes : pas encore franchi
+    clock.set(START_AT + 29_999) // 30 001 ms restantes : aucun palier franchi
     app.draw()
     expect(audio.played).toEqual([])
 
+    clock.set(START_AT + 30_001)
+    app.draw()
+    expect(audio.played).toEqual(['half-minute'])
+
     clock.set(START_AT + 50_001)
     app.draw()
-    expect(audio.played).toEqual(['urgent'])
+    expect(audio.played).toEqual(['half-minute', 'urgent'])
 
     clock.set(START_AT + 60_000)
     app.draw()
-    expect(audio.played).toEqual(['urgent', 'flag'])
+    expect(audio.played).toEqual(['half-minute', 'urgent', 'flag'])
 
     // Une fois le drapeau tombé, plus rien n'est émis frame après frame.
     clock.set(START_AT + 120_000)
     app.draw()
     app.draw()
-    expect(audio.played).toEqual(['urgent', 'flag'])
+    expect(audio.played).toEqual(['half-minute', 'urgent', 'flag'])
+    expect(audio.played).not.toContain('minute')
   })
 
   it('R15 : le mode silencieux coupe tous les sons sans toucher au visuel', () => {
