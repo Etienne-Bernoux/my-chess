@@ -136,6 +136,14 @@
           <span class="field-label">Mode silencieux</span>
         </label>
 
+        <!-- R37 : facultatif, et donc hors du chemin qui ouvre une partie. Il ne
+             vit que sur l'accueil : un tirage n'a de sens qu'avant de jouer. -->
+        <div class="field" id="draw-field">
+          <span class="field-label">Tirage des couleurs — la couleur sortie va à qui appuie</span>
+          <button type="button" class="action" id="draw-button">Tirer au sort</button>
+          <p class="draw-result" id="draw-result" hidden></p>
+        </div>
+
         <div class="actions">
           <button type="button" class="action action--primary" id="resume-button">Reprendre</button>
           <button type="button" class="action" id="export-button">Exporter le journal</button>

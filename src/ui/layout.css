@@ -362,6 +362,22 @@ body {
   accent-color: var(--accent);
 }
 
+/* R37 : le résultat se lit d'un coup d'œil depuis l'autre côté de la table —
+   c'est un tirage qui se montre à l'adversaire, pas une préférence de réglage. */
+.draw-result {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--panel-fg);
+}
+
+.draw-result[hidden] {
+  display: none;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

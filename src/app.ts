@@ -16,6 +16,8 @@ import { CUSTOM_ID, buildCustom, draftFromTimeControl } from './presets/custom'
 import { RESET_ARM_MS, canResume, queryElements, render } from './ui/render'
 import { createWebAudioCues, cueForTransition } from './audio/cues'
 import { createWakeLock } from './platform/wakeLock'
+import { drawSide } from './domain/draw'
+import type { DrawnSide, Random } from './domain/draw'
 import type { AudioSink } from './audio/cues'
 import type { ScreenWakeLock } from './platform/wakeLock'
 import type { OverlayMode } from './ui/render'
@@ -30,6 +32,8 @@ export type AppDeps = {
   readonly root?: ParentNode
   readonly audio?: AudioSink
   readonly wakeLock?: ScreenWakeLock
+  /** R37 : injecté comme l'horloge, et pour la même raison — sinon intestable. */
+  readonly random?: Random
 }
 
 export type App = {
@@ -49,6 +53,7 @@ export function createApp({
   root = document,
   audio = createWebAudioCues(),
   wakeLock = createWakeLock(),
+  random = Math.random,
 }: AppDeps): App {
   const el = queryElements(root)
 
@@ -60,6 +65,10 @@ export function createApp({
   let overlay: OverlayMode = 'home'
   let silent = loadSilent(store)
   let note = ''
+  // R37 : jamais persisté et jamais écrit au journal. Un tirage vaut pour la
+  // partie qu'on est en train d'ouvrir ; le retrouver au lancement suivant
+  // ferait croire à un tirage qu'on n'a pas fait.
+  let drawn: DrawnSide | null = null
 
   // R26 : à l'ouverture, si le journal de la dernière partie n'est pas clos, on
   // propose de la reprendre. La reprise restitue l'état exact — c'est le fold
@@ -128,6 +137,9 @@ export function createApp({
     overlay = 'none'
     resetArmedAt = null
     note = ''
+    // Le tirage valait pour la partie qu'on vient d'ouvrir : le garder
+    // afficherait un résultat périmé au prochain passage sur l'accueil.
+    drawn = null
   }
 
   // ---------- Zones de tap (R6, R7, R8, R9) ----------
@@ -261,6 +273,12 @@ export function createApp({
     })
   }
 
+  // R37 : le tirage ne touche à rien — ni au journal, ni à la cadence, ni à
+  // l'orientation, qui reste décidée par le seul premier tap (R8).
+  el.drawButton.addEventListener('click', () => {
+    drawn = drawSide(random)
+  })
+
   el.silentToggle.addEventListener('change', () => {
     silent = el.silentToggle.checked
     saveSilent(store, silent)
@@ -320,6 +338,7 @@ export function createApp({
         selectedPresetId,
         custom: draft,
         customError: armed.ok ? null : armed.reason,
+        drawn,
         resetArmed: isResetArmed(now),
         note,
       },

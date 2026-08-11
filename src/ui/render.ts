@@ -2,6 +2,7 @@ import { TENTHS_BELOW_MS, formatRemaining } from './format'
 import { ALERT_LEVELS } from '../domain/types'
 import { CUSTOM_ID } from '../presets/custom'
 import type { CustomDraft } from '../presets/custom'
+import type { DrawnSide } from '../domain/draw'
 import type { Half, TimeControl, View } from '../domain/types'
 
 /**
@@ -32,6 +33,8 @@ export type UiModel = {
   readonly custom: CustomDraft
   /** Ce qui empêche la saisie manuelle de produire une cadence, s'il y a lieu. */
   readonly customError: string | null
+  /** R37 : le dernier tirage, ou `null` tant que personne n'a appuyé. */
+  readonly drawn: DrawnSide | null
   /** R11 : le reset a été armé, le prochain appui abandonne réellement la partie. */
   readonly resetArmed: boolean
   readonly note: string
@@ -59,6 +62,9 @@ export type Elements = {
   readonly customIncrement: HTMLInputElement
   readonly customModes: Readonly<Record<'fischer' | 'bronstein', HTMLInputElement>>
   readonly silentToggle: HTMLInputElement
+  readonly drawField: HTMLElement
+  readonly drawButton: HTMLButtonElement
+  readonly drawResult: HTMLElement
   readonly resumeButton: HTMLButtonElement
   readonly exportButton: HTMLButtonElement
   readonly resetButton: HTMLButtonElement
@@ -105,6 +111,9 @@ export function queryElements(root: ParentNode = document): Elements {
       bronstein: required<HTMLInputElement>(root, 'custom-mode-bronstein'),
     },
     silentToggle: required<HTMLInputElement>(root, 'silent-toggle'),
+    drawField: required(root, 'draw-field'),
+    drawButton: required<HTMLButtonElement>(root, 'draw-button'),
+    drawResult: required(root, 'draw-result'),
     resumeButton: required<HTMLButtonElement>(root, 'resume-button'),
     exportButton: required<HTMLButtonElement>(root, 'export-button'),
     resetButton: required<HTMLButtonElement>(root, 'reset-button'),
@@ -148,6 +157,12 @@ export function halfState(view: View, half: Half, now: number): readonly string[
  * (R32) : sans lui, les deux valeurs se croisent au premier tap et se lisent
  * comme une erreur de l'application.
  */
+/** R37 : les deux résultats possibles du tirage. */
+export const DRAW_LABEL: Readonly<Record<DrawnSide, string>> = {
+  white: 'Blancs',
+  black: 'Noirs',
+}
+
 export const sideLabel = (view: View, half: Half): string | null =>
   view.whiteHalf === null ? null : half === view.whiteHalf ? 'Blancs' : 'Noirs'
 
@@ -317,6 +332,16 @@ export function render(el: Elements, model: UiModel, now: number): void {
   renderCustomFields(el, model)
 
   el.silentToggle.checked = model.silent
+
+  // R37 : un tirage n'a de sens qu'avant de jouer. Il ne vit donc que sur
+  // l'accueil — ni sur la pause, ni sur le drapeau tombé, où il ne serait qu'un
+  // contrôle de plus entre le joueur et le bouton qu'il cherche.
+  el.drawField.hidden = model.overlay !== 'home'
+  el.drawResult.hidden = model.drawn === null
+  if (model.drawn !== null) {
+    const drawn = DRAW_LABEL[model.drawn]
+    if (el.drawResult.textContent !== drawn) el.drawResult.textContent = drawn
+  }
 
   // Rien à reprendre sur un drapeau tombé (R17) ni sur une pendule jamais lancée.
   el.resumeButton.hidden = !resumable

@@ -34,6 +34,7 @@ const model = (journal: Journal, now: number, over: Partial<UiModel> = {}): UiMo
   selectedPresetId: PRESETS[0]!.id,
   custom: DEFAULT_DRAFT,
   customError: null,
+  drawn: null,
   resetArmed: false,
   note: '',
   ...over,
