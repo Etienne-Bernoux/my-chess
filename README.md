@@ -2,7 +2,7 @@
 
 Deux outils d'échecs pour mon usage, dans une seule application installée sur mon téléphone : une **pendule** posée à plat entre les joueurs, et un **répertoire d'ouvertures** qu'on travaille pour de vrai.
 
-> **Statut : pendule v1 implémentée** (exigences R1 à R36 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
+> **Statut : pendule v1 implémentée** (exigences R1 à R37 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
 
 ## Pourquoi
 
@@ -21,6 +21,8 @@ Deux modes de cadence, et deux seulement : **Fischer** (temps initial + incréme
 Au-delà des cadences fournies, une entrée **« Personnalisée… »** ouvre la saisie d'un temps, d'un incrément et d'un mode, et — derrière un interrupteur — d'un **temps distinct par camp** pour jouer à handicap. Les temps se règlent par couleur : c'est le premier tap qui décide de l'orientation des deux camps, et donc de qui reçoit lequel.
 
 Le temps restant est rappelé à **trois paliers** — une minute, trente secondes, dix secondes : le fond de la moitié se colore et un signal sonore part, d'une tonalité plus haute à chaque palier. Un palier atteint ne se relâche plus, même si l'incrément fait repasser au-dessus du seuil, et un palier plus haut que le temps de départ ne s'arme jamais. Les sons se règlent dans [`src/audio/sounds.json`](./src/audio/sounds.json), à la main, sans écran de réglages.
+
+Un **tirage au sort des couleurs** est proposé sur l'accueil, et reste facultatif : un bouton qu'on ignore, jamais une étape avant de jouer. Il ne touche à rien — c'est un pion caché dans un poing, en numérique, et l'orientation des camps reste décidée par le seul premier tap.
 
 À la chute du drapeau, la pendule **constate sans arbitrer** — elle marque le camp concerné et n'écrit aucun résultat. Une pendule ne voit pas l'échiquier, donc elle ne peut pas savoir si le mat était encore possible.
 

@@ -362,6 +362,22 @@ body {
   accent-color: var(--accent);
 }
 
+/* R37 : le résultat se lit d'un coup d'œil depuis l'autre côté de la table —
+   c'est un tirage qui se montre à l'adversaire, pas une préférence de réglage. */
+.draw-result {
+  margin: 0;
+  /* Plus de capitales : le résultat est devenu une phrase courte, et trois mots
+     criés se lisent moins bien qu'un mot. */
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--panel-fg);
+}
+
+.draw-result[hidden] {
+  display: none;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

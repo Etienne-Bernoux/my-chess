@@ -66,6 +66,12 @@ R11b. L'application s'ouvre **systématiquement sur un écran d'accueil**. La ca
 
   L'accueil étant le seul écran qui s'ouvre **sans qu'on l'ait demandé**, y abandonner une partie non close exige un **second appui** : le bouton s'arme d'abord et l'annonce. Ailleurs, avoir ouvert l'écran est déjà le premier geste.
 
+R37. Un **tirage au sort des couleurs** est proposé sur l'écran d'accueil, et **facultatif** : c'est un bouton qu'on ignore, jamais une étape avant de jouer. Il ne vit que sur l'accueil — sur la pause ou un drapeau tombé, il ne serait qu'un contrôle de plus entre le joueur et celui qu'il cherche.
+
+  Il ne touche à **rien** : ni le journal, ni la cadence, ni l'orientation, qui reste déduite du seul premier tap (R8). Un tirage qui désignerait une moitié de l'écran entrerait en contradiction avec ce tap sans que rien ne le signale ; celui-ci ne fait que sortir un mot, comme un pion caché dans un poing. Le résultat n'est **pas persisté** : le retrouver au lancement suivant ferait croire à un tirage qu'on n'a pas fait.
+
+  La source d'aléa est **injectée**, comme la source de temps (R22) et pour la même raison : un tirage lu en dur ne se prouve pas, on ne peut que le regarder tomber du bon côté quelques fois et espérer.
+
 ### Retours
 
 R12. Au moment du tap, la confirmation prioritaire va **au joueur qui vient de jouer**, et elle est **visuelle** sur sa propre moitié — son cadran se fige de façon perceptible en vision périphérique. Il n'y a qu'un vibreur dans le téléphone et les deux joueurs le sentent : l'haptique ne peut pas être adressée à un seul camp.
@@ -245,7 +251,7 @@ Un vrai rechargement se prouve en redémarrant le serveur de développement, pas
 
 ## Découpage
 
-**v1 — pendule utilisable en club.** R1 à R36. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
+**v1 — pendule utilisable en club.** R1 à R37. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
 
 **v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : cadences nommées enregistrables, granularité de saisie sous la minute si R31 se révèle trop grossière à l'usage.
 

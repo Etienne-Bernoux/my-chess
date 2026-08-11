@@ -43,9 +43,13 @@ let store: KeyValueStore
 let audio: RecordingSink
 let app: App
 
+/** R37 : source d'aléa scriptée — le tirage se prouve, il ne s'observe pas. */
+let randomValues: number[] = []
+const scriptedRandom = (): number => randomValues.shift() ?? 0
+
 const mount = (): App => {
   document.body.innerHTML = BODY
-  return createApp({ clock, store, audio, root: document })
+  return createApp({ clock, store, audio, random: scriptedRandom, root: document })
 }
 
 /**
@@ -113,6 +117,7 @@ beforeEach(() => {
   clock = new TestClock(START_AT)
   store = memoryStore()
   audio = recordingSink()
+  randomValues = []
   app = mount()
   enterGame()
 })
@@ -704,5 +709,64 @@ describe('cadence manuelle et handicap (R4, R31, R32)', () => {
     enterGame()
 
     expect(text('#clock-bottom')).toBe('10:00')
+  })
+})
+
+describe('tirage des couleurs (R37)', () => {
+  /** La pendule n'a pas encore démarré : le menu rouvre donc l'accueil. */
+  const openHome = (): void => click('menu-button')
+
+  it('rien n’est tiré tant que personne n’a appuyé', () => {
+    openHome()
+    expect(hidden('#draw-field')).toBe(false)
+    expect(hidden('#draw-result')).toBe(true)
+  })
+
+  it('les deux issues sortent, et le résultat se remplace', () => {
+    openHome()
+
+    randomValues = [0.2]
+    click('draw-button')
+    expect(text('#draw-result')).toBe('Blancs pour vous')
+    expect(hidden('#draw-result')).toBe(false)
+
+    randomValues = [0.8]
+    click('draw-button')
+    expect(text('#draw-result')).toBe('Noirs pour vous')
+  })
+
+  it('R8 : le tirage ne décide pas de l’orientation, le premier tap si', () => {
+    openHome()
+    randomValues = [0.9] // le tirage annonce « Noirs »
+    click('draw-button')
+    expect(text('#draw-result')).toBe('Noirs pour vous')
+
+    click('reset-button')
+    press('half-top')
+
+    // Le tap seul attribue les camps : ce qui est sorti du tirage n'y entre pas.
+    expect(journal().events[0]).toMatchObject({ type: 'start', whiteHalf: 'top' })
+    expect(text('#side-top')).toBe('Blancs')
+  })
+
+  it('ouvrir une partie efface le tirage', () => {
+    openHome()
+    randomValues = [0.2]
+    click('draw-button')
+    expect(text('#draw-result')).toBe('Blancs pour vous')
+
+    click('reset-button')
+    openHome()
+
+    // Sinon le résultat d'une partie déjà jouée se lirait comme celui de la
+    // suivante, et personne ne verrait la différence.
+    expect(hidden('#draw-result')).toBe(true)
+  })
+
+  it('R37 : facultatif, donc absent de tout écran qui n’est pas l’accueil', () => {
+    press('half-bottom')
+    click('menu-button') // la pendule tourne : c'est la pause qui s'ouvre
+
+    expect(hidden('#draw-field')).toBe(true)
   })
 })
