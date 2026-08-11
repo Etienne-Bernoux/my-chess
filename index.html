@@ -139,8 +139,10 @@
         <!-- R37 : facultatif, et donc hors du chemin qui ouvre une partie. Il ne
              vit que sur l'accueil : un tirage n'a de sens qu'avant de jouer. -->
         <div class="field" id="draw-field">
-          <span class="field-label">Tirage des couleurs — la couleur sortie va à qui appuie</span>
-          <button type="button" class="action" id="draw-button">Tirer au sort</button>
+          <!-- Pas de libellé de champ : le bouton se suffit, et le panneau est
+               déjà chargé. La convention ne s'énonce qu'au moment où elle sert,
+               dans le résultat — « pour vous » dit à qui, en deux mots. -->
+          <button type="button" class="action" id="draw-button">Tirer au sort la couleur</button>
           <p class="draw-result" id="draw-result" hidden></p>
         </div>
 

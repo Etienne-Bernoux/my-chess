@@ -727,19 +727,19 @@ describe('tirage des couleurs (R37)', () => {
 
     randomValues = [0.2]
     click('draw-button')
-    expect(text('#draw-result')).toBe('Blancs')
+    expect(text('#draw-result')).toBe('Blancs pour vous')
     expect(hidden('#draw-result')).toBe(false)
 
     randomValues = [0.8]
     click('draw-button')
-    expect(text('#draw-result')).toBe('Noirs')
+    expect(text('#draw-result')).toBe('Noirs pour vous')
   })
 
   it('R8 : le tirage ne décide pas de l’orientation, le premier tap si', () => {
     openHome()
     randomValues = [0.9] // le tirage annonce « Noirs »
     click('draw-button')
-    expect(text('#draw-result')).toBe('Noirs')
+    expect(text('#draw-result')).toBe('Noirs pour vous')
 
     click('reset-button')
     press('half-top')
@@ -753,7 +753,7 @@ describe('tirage des couleurs (R37)', () => {
     openHome()
     randomValues = [0.2]
     click('draw-button')
-    expect(text('#draw-result')).toBe('Blancs')
+    expect(text('#draw-result')).toBe('Blancs pour vous')
 
     click('reset-button')
     openHome()

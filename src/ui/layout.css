@@ -366,10 +366,10 @@ body {
    c'est un tirage qui se montre à l'adversaire, pas une préférence de réglage. */
 .draw-result {
   margin: 0;
-  font-size: 1.6rem;
+  /* Plus de capitales : le résultat est devenu une phrase courte, et trois mots
+     criés se lisent moins bien qu'un mot. */
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   text-align: center;
   color: var(--panel-fg);
 }

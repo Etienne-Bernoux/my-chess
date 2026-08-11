@@ -157,10 +157,15 @@ export function halfState(view: View, half: Half, now: number): readonly string[
  * (R32) : sans lui, les deux valeurs se croisent au premier tap et se lisent
  * comme une erreur de l'application.
  */
-/** R37 : les deux résultats possibles du tirage. */
+/**
+ * R37 : les deux résultats possibles. « pour vous » porte toute la convention —
+ * le tireur prend la couleur sortie, comme au pion caché dans le poing. Elle
+ * n'existe qu'ici, au moment où elle sert, plutôt qu'en libellé permanent sur un
+ * panneau déjà chargé.
+ */
 export const DRAW_LABEL: Readonly<Record<DrawnSide, string>> = {
-  white: 'Blancs',
-  black: 'Noirs',
+  white: 'Blancs pour vous',
+  black: 'Noirs pour vous',
 }
 
 export const sideLabel = (view: View, half: Half): string | null =>
