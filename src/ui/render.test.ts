@@ -195,15 +195,38 @@ describe('render — écran de pause (R11)', () => {
     expect(el.resetButton.hidden).toBe(false)
   })
 
-  it('la cadence reste choisissable partout où une nouvelle partie est proposée (R29)', () => {
+  it('la cadence se règle avant une partie et après une chute, jamais en pause (R38)', () => {
     const journal = start(newJournal(tc()), START_AT, WHITE)!
-    // Un select grisé à côté d'un bouton « Nouvelle partie » rendrait le bouton
-    // menteur : il proposerait une partie dont on ne peut pas régler la cadence.
-    for (const overlay of ['home', 'pause', 'over'] as const) {
-      render(el, model(journal, START_AT, { overlay }), START_AT)
+
+    // Avant de jouer et une fois le drapeau tombé, ouvrir une partie est
+    // l'action attendue : la cadence doit s'y régler.
+    for (const overlay of ['home', 'over'] as const) {
+      render(el, model(journal, START_AT, { overlay, selectedPresetId: CUSTOM_ID }), START_AT)
       expect(el.presetSelect.disabled).toBe(false)
+      expect(el.customMinutes.disabled).toBe(false)
       expect(el.resetButton.hidden).toBe(false)
     }
+
+    // En pause, un champ éditable laisserait croire qu'on règle la partie en
+    // cours. Il reste lisible — le bouton doit continuer d'annoncer avec quelle
+    // cadence il partirait — mais il ne se touche plus.
+    render(
+      el,
+      model(journal, START_AT, { overlay: 'pause', selectedPresetId: CUSTOM_ID }),
+      START_AT,
+    )
+    expect(el.presetSelect.disabled).toBe(true)
+    expect(el.customMinutes.disabled).toBe(true)
+    expect(el.customHandicap.disabled).toBe(true)
+    expect(el.customIncrement.disabled).toBe(true)
+    expect(el.customModes.fischer.disabled).toBe(true)
+    expect(el.presetField.hidden).toBe(false)
+    expect(el.resetButton.hidden).toBe(false)
+
+    // Se taire au milieu d'une partie reste légitime : le mode silencieux n'est
+    // pas un réglage de cadence et ne se grise pas avec elle.
+    expect(el.silentToggle.disabled).toBe(false)
+
     // Les presets, plus l'entrée manuelle qui ferme toujours la liste.
     expect(el.presetSelect.options.length).toBe(PRESETS.length + 1)
     expect(el.presetSelect.options[PRESETS.length]!.value).toBe(CUSTOM_ID)

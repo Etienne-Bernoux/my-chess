@@ -72,6 +72,12 @@ R37. Un **tirage au sort des couleurs** est proposé sur l'écran d'accueil, et 
 
   La source d'aléa est **injectée**, comme la source de temps (R22) et pour la même raison : un tirage lu en dur ne se prouve pas, on ne peut que le regarder tomber du bon côté quelques fois et espérer.
 
+R38. **En pause, la cadence se lit mais ne se règle plus.** Un champ éditable y laisse croire qu'on modifie la partie **en cours**, ce qui est faux : seule « Nouvelle partie » l'appliquerait, en jetant celle qu'on vient de mettre en pause.
+
+  Les contrôles sont **grisés, jamais masqués** : le bouton doit continuer d'annoncer avec quelle cadence il partirait. C'est ce qui rend l'ancienne objection caduque — elle visait un select grisé qui aurait rendu le bouton menteur, alors que c'est l'inverse : masquer mentirait, griser informe. Le prix assumé : changer de cadence en cours de session coûte deux gestes de plus, une nouvelle partie puis les réglages.
+
+  Le **mode silencieux n'est pas concerné** : se taire au milieu d'une partie est un besoin légitime, et ce n'est pas un réglage de cadence.
+
 ### Retours
 
 R12. Au moment du tap, la confirmation prioritaire va **au joueur qui vient de jouer**, et elle est **visuelle** sur sa propre moitié — son cadran se fige de façon perceptible en vision périphérique. Il n'y a qu'un vibreur dans le téléphone et les deux joueurs le sentent : l'haptique ne peut pas être adressée à un seul camp.
@@ -251,7 +257,7 @@ Un vrai rechargement se prouve en redémarrant le serveur de développement, pas
 
 ## Découpage
 
-**v1 — pendule utilisable en club.** R1 à R37. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
+**v1 — pendule utilisable en club.** R1 à R38. Le critère de fin n'est pas « les tests passent » mais : une partie réelle jouée du début à la fin sur le téléphone, contre un adversaire humain, sans qu'on ait envie de reprendre une autre pendule.
 
 **v2 — durcissement.** Ce que la v1 aura révélé en usage. Candidats connus, non engagés : cadences nommées enregistrables, granularité de saisie sous la minute si R31 se révèle trop grossière à l'usage.
 
