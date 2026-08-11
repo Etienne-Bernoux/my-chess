@@ -67,6 +67,8 @@ body {
   min-height: 0;
   display: grid;
   place-items: center;
+  /* Repère du camp posé en absolu, cf. `.side`. */
+  position: relative;
   font: inherit;
   cursor: pointer;
   background: var(--half-idle-bg);
@@ -87,6 +89,32 @@ body {
 /* R5 : la moitié de l'adversaire est lue depuis l'autre côté de la table. */
 #half-top {
   transform: rotate(180deg);
+}
+
+/* R36 : quel camp occupe cette moitié, une fois le premier tap passé. Posé en
+   absolu et non dans le flux : il ne doit ni décaler le cadran ni ajouter de la
+   hauteur — sur un écran court, la grille déborderait. Il suit la rotation de sa
+   moitié (R5), donc il se lit à l'endroit depuis la place de son joueur.
+   `currentColor` le fait suivre chaque état sans le redéclarer palier par palier. */
+.side {
+  position: absolute;
+  top: max(0.5rem, 5%);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: clamp(0.75rem, 3.2vh, 1.1rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: currentcolor;
+  /* Assez effacé pour rester derrière les chiffres, assez présent pour se lire
+     sur la moitié EN ATTENTE — gris sombre sur fond sombre, et c'est justement
+     le joueur qui a le temps de le lire. Valeur à confirmer sur le téléphone. */
+  opacity: 0.75;
+}
+
+.side[hidden] {
+  display: none;
 }
 
 .clock {
