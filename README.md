@@ -2,7 +2,7 @@
 
 Deux outils d'échecs pour mon usage, dans une seule application installée sur mon téléphone : une **pendule** posée à plat entre les joueurs, et un **répertoire d'ouvertures** qu'on travaille pour de vrai.
 
-> **Statut : pendule v1 implémentée** (exigences R1 à R37 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
+> **Statut : pendule v1 implémentée** (exigences R1 à R38 de [`SPECS.md`](./SPECS.md)), en attente de sa validation sur le téléphone. Le répertoire d'ouvertures n'est pas commencé. Les pistes explorées et écartées sont tracées dans [`docs/ideation/`](./docs/ideation/).
 
 ## Pourquoi
 

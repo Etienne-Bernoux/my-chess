@@ -309,8 +309,11 @@ body {
   font: inherit;
 }
 
-#preset-select:disabled {
+/* R38 : en pause, la cadence se lit encore mais ne se règle plus. */
+.panel input:disabled,
+.panel select:disabled {
   opacity: 0.45;
+  cursor: default;
 }
 
 .fields {

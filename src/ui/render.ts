@@ -201,7 +201,14 @@ const overlayText = (
   resumable: boolean,
 ): { title: string; hint: string } => {
   if (overlay === 'home') return resumable ? HOME_RESUMABLE : HOME_FRESH
-  if (overlay === 'pause') return { title: 'Pause', hint: 'Le temps est arrêté des deux côtés.' }
+  if (overlay === 'pause') {
+    return {
+      title: 'Pause',
+      // R38 : dire pourquoi la cadence est grisée coûte une proposition, et
+      // évite qu'on la croie cassée.
+      hint: 'Le temps est arrêté des deux côtés. La cadence ne se règle qu’avant une partie.',
+    }
+  }
   // R18 : on explique pourquoi rien n'est attribué, sans rien attribuer.
   return {
     title: 'Drapeau tombé',
@@ -257,6 +264,21 @@ function renderCustomFields(el: Elements, model: UiModel): void {
   el.customModes.fischer.checked = draft.mode === 'fischer'
   el.customModes.bronstein.checked = draft.mode === 'bronstein'
 }
+
+/**
+ * R38 : tout ce qui règle la cadence de la PROCHAINE partie. Le mode silencieux
+ * n'en fait pas partie — se taire au milieu d'une partie est un besoin légitime.
+ */
+const timeControlInputs = (el: Elements): readonly (HTMLInputElement | HTMLSelectElement)[] => [
+  el.presetSelect,
+  el.customMinutes,
+  el.customHandicap,
+  el.customWhite,
+  el.customBlack,
+  el.customIncrement,
+  el.customModes.fischer,
+  el.customModes.bronstein,
+]
 
 const toggleClass = (element: HTMLElement, name: string, on: boolean): void => {
   if (element.classList.contains(name) !== on) element.classList.toggle(name, on)
@@ -330,6 +352,17 @@ export function render(el: Elements, model: UiModel, now: number): void {
   // rendait le bouton menteur — il proposait une nouvelle partie sans laisser en
   // régler la cadence.
   el.presetField.hidden = false
+
+  // R38 : en pause, la cadence se lit mais ne se change plus. Un champ éditable y
+  // laisse croire qu'on règle la partie EN COURS, ce qui est faux — seule
+  // « Nouvelle partie » l'appliquerait, en jetant celle qu'on vient de mettre en
+  // pause. On grise plutôt qu'on ne masque : le bouton continue d'annoncer avec
+  // quelle cadence il partirait.
+  const locked = model.overlay === 'pause'
+  for (const input of timeControlInputs(el)) {
+    if (input.disabled !== locked) input.disabled = locked
+  }
+
   syncPresets(el.presetSelect, model.presets)
   if (el.presetSelect.value !== model.selectedPresetId) {
     el.presetSelect.value = model.selectedPresetId
