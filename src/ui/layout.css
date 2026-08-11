@@ -79,6 +79,14 @@ body {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   transition: background-color 90ms linear, color 90ms linear;
+
+  /* La moitié en attente ne porte aucune classe d'état : son gris de repos est
+     déjà à 2,09:1 sur le fond sombre. Le repère ne peut donc pas s'y contenter
+     de `currentcolor` atténué — aucune opacité ne rattrape un premier plan aussi
+     faible, et c'est ce joueur-là qui a le temps de lire son camp. Il prend donc
+     son propre gris, à pleine force : 5,02:1. */
+  --side-fg: var(--panel-muted);
+  --side-opacity: 1;
 }
 
 .half:focus-visible {
@@ -106,11 +114,8 @@ body {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: currentcolor;
-  /* Assez effacé pour rester derrière les chiffres, assez présent pour se lire
-     sur la moitié EN ATTENTE — gris sombre sur fond sombre, et c'est justement
-     le joueur qui a le temps de le lire. Valeur à confirmer sur le téléphone. */
-  opacity: 0.75;
+  color: var(--side-fg);
+  opacity: var(--side-opacity);
 }
 
 .side[hidden] {
@@ -125,6 +130,19 @@ body {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
+}
+
+/* Dès qu'une moitié porte une couleur d'état, son premier plan est franc : le
+   repère peut y suivre la couleur du cadran, atténué pour rester derrière les
+   chiffres. C'est le seul cas où l'opacité est le bon levier. */
+.half.is-running,
+.half.is-alert-minute,
+.half.is-alert-half-minute,
+.half.is-alert-urgent,
+.half.is-flagged,
+.half.is-confirming {
+  --side-fg: currentcolor;
+  --side-opacity: 0.75;
 }
 
 /* Le camp au trait est franchement plus lumineux que l'autre : c'est ce

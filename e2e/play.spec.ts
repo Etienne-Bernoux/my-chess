@@ -58,13 +58,21 @@ test.beforeEach(async ({ page }) => {
 test('R8 : le premier tap lance l’adversaire et le contraste bascule', async ({ page }) => {
   const avant = await background(page, 'bottom')
 
-  // R36 : tant que le tap n'a pas décidé de l'orientation, aucun camp n'est écrit.
+  // R36 : tant que le tap n'a pas décidé de l'orientation, aucun camp n'est
+  // écrit. `toHaveCount(1)` d'abord : `toBeHidden` est aussi satisfait par un
+  // élément absent, donc seul ce compte distingue « caché » de « supprimé ».
+  await expect(page.locator('#side-bottom')).toHaveCount(1)
+  await expect(page.locator('#side-top')).toHaveCount(1)
   await expect(page.locator('#side-bottom')).toBeHidden()
   await expect(page.locator('#side-top')).toBeHidden()
 
   await tapHalf(page, 'bottom')
 
   // R36 : le camp est écrit sur chaque moitié, et suit ce que le tap a décidé.
+  // La visibilité s'assère à part : `toHaveText` lit `textContent` et passerait
+  // sur une moitié dont l'attribut `hidden` n'a jamais été retiré.
+  await expect(page.locator('#side-bottom')).not.toBeHidden()
+  await expect(page.locator('#side-top')).not.toBeHidden()
   await expect(page.locator('#side-bottom')).toHaveText('Blancs')
   await expect(page.locator('#side-top')).toHaveText('Noirs')
 
